@@ -76,13 +76,13 @@ Integration tests require a Docker-compatible runtime and Testcontainers. If a r
   - Use `backend_engineer` and `frontend_engineer` for their respective implementation areas; avoid parallel edits to overlapping files.
   - Use `backend_code_reviewer` and `frontend_code_reviewer` for independent diff review.
   - Use `qa_tester` for risk-based functional and regression testing and `devops_engineer` for delivery and operational changes.
-  - Use `sanity_runner` as the final independent pre-push verification gate.
+  - Use `sanity_runner` only after a runnable product implementation exists and normal automated tests pass, to exercise APIs and critical functionality end to end. Never use it for documentation, configuration, planning, static review, or as a generic pre-push gate.
 - The primary agent owns orchestration, resolves conflicting recommendations, and remains accountable for the final result.
 - Never make project changes directly on `main`; create a focused feature branch first.
 - Before pushing, run the changed application locally when it is runnable and execute the narrowest relevant checks plus the full verification suite.
 - Add or update meaningful unit tests for every behavior change; do not treat build-only or superficial tests as sufficient coverage.
-- Before pushing, delegate a final independent verification to a `sanity-runner` sub-agent. Give it the changed scope, acceptance criteria, and commands to run; resolve its blocking findings or document any unavailable check precisely.
-- Push only after local verification and the `sanity-runner` review succeed, then open a pull request targeting `main`. Do not merge directly into `main`.
+- Before pushing, complete the required local verification, independent code review, and QA appropriate to the change; resolve blocking findings or document any unavailable check precisely.
+- Push only after the applicable review and verification succeed, then open a pull request targeting `main`. Do not merge directly into `main`.
 - Before creating a new pull request, verify that every earlier pull request targeting `main` has been merged. Keep at most one open change pull request at a time unless the user explicitly approves an exception.
 - Record durable requirements, decisions, plans, architecture, verification evidence, operational impacts, and outcomes in version-controlled repository files; do not leave essential project context only in chat, agent output, or pull-request descriptions.
 - Keep changes small enough to review.
