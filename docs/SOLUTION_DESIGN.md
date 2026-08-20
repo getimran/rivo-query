@@ -19,6 +19,7 @@ A durable embedded operation worker handles schema refresh and cleanup operation
 Use the following package structure below `apps/api/src/main/java/com/knowimran/rivoquery`:
 
 ```text
+application/    cross-module input use-case ports and safe application errors
 identity/       domain, application, and authorization/persistence ports
 connection/     connection aggregate, lifecycle use cases, secret/destination ports
 catalog/        normalized schema, snapshots, refresh and selection

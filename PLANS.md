@@ -14,7 +14,7 @@ Deliver a production-oriented vertical slice in which an authenticated user can 
 - [x] Codex and VS Code workspace baseline
 - [x] Solution design and independent design review
 - [x] Execution-ready task decomposition through Phase 8
-- [ ] Phase 1: repository and backend bootstrap
+- [x] Phase 1: repository and backend bootstrap
 - [ ] Phase 2: connection control plane
 - [ ] Phase 3: schema discovery and relevance selection
 - [ ] Phase 4: Text-to-SQL orchestration and QuerySentry
@@ -29,8 +29,14 @@ register for these phases. Keep the phase summaries and outcomes here synchroniz
 at serialized integration checkpoints; do not have parallel agents edit this file.
 
 Repository gate update (2026-08-20): PR #3 is merged and
-`docs/solution-design-and-plan` includes the updated `main` baseline. The next
-allowed pull request is the single design/planning checkpoint before Phase 1.
+the design/planning checkpoint PR #4 is merged. Phase 1 is active on
+`feat/phase-1-platform-bootstrap`; its implementation and local acceptance
+checks are complete within the bootstrap prompt. Draft CP-1 is PR #5. Its first
+hosted CI run (`32363020594`) did not start any job because GitHub reported an
+account payment/spending-limit restriction. The product owner subsequently
+deferred GitHub Actions until the complete product is ready for deployment and
+accepted full local suites, independent review, and QA as the development PR
+gate. CP-1 must merge before Phase 2 begins.
 
 ## Phase 1 — Repository and backend bootstrap
 
@@ -136,6 +142,28 @@ Record unexpected constraints, failed assumptions, library incompatibilities, da
   canonicalization before Phase 4; preview replay and terminal audit semantics
   before Phase 5; and identity/export, MCP, and hosting decisions at their
   consuming phases. These are now explicit dependencies in the task register.
+- 2026-08-20: Phase 1 initially lacked Java 21, Node/npm, and a Docker runtime.
+  The local toolchain was then installed and exercised with OpenJDK 21.0.12.1,
+  Maven Wrapper 3.9.15, Node 26.7.0/npm 11.19.0, Docker Engine 29.5.2 under
+  Colima, and standalone Compose 5.5.0. Backend/Testcontainers, frontend, and
+  live Compose checks now run locally rather than remaining environment gaps.
+- 2026-08-20: Colima did not establish a published loopback port when the
+  PostgreSQL service was attached only to a Compose `internal` network, despite
+  recording the requested host binding. Using the project-scoped default bridge
+  while retaining `127.0.0.1` binding restored host-run API access without
+  exposing PostgreSQL on non-loopback interfaces.
+- 2026-08-20: OpenAPI Generator 7.24.0 validates and generates the required
+  OpenAPI 3.1 contract, but still labels its 3.1 code path beta and emits a
+  generic default-localhost warning even with the contract's relative `/`
+  server. Generated Phase 1 interfaces contain no base URL, and the frontend
+  client uses the same-origin relative contract; keep this generator behavior
+  under dependency review.
+- 2026-08-20: Independent review caught three release-blocking gaps before the
+  checkpoint: unsupported response media types mapped to 500 instead of a safe
+  406, the REST controller depended on a concrete platform probe, and npm's
+  lifecycle-script approvals were not fail-closed. The fixes added a contracted
+  406, an application input port plus ArchUnit guard, and strict exact-version
+  lifecycle-script enforcement with regressions. Both re-reviews are SAFE.
 
 ## Decision log
 
@@ -157,7 +185,43 @@ Record implementation-level decisions that do not yet justify an ADR.
   only the minimal heartbeat/version migration. Future-state product tables and
   connection, catalog, model, policy, and execution behavior begin in their
   consuming phases.
+- 2026-08-20: The two Phase 1 health probes are the sole unauthenticated REST
+  exception. They expose bounded status only; liveness has no dependency call,
+  readiness uses an application input port and the control heartbeat, and all
+  other product REST operations remain subject to the planned JWT baseline.
 
 ## Outcomes and retrospective
 
 Complete after each phase: what shipped, checks run, known limitations, and the safest next step.
+
+### Phase 1 — platform bootstrap (2026-08-20)
+
+Shipped the Java 21/Spring Boot modular foundation, OpenAPI-generated health
+contract, minimal Flyway heartbeat migration, bounded PostgreSQL readiness,
+safe RFC 9457/request-ID/logging/metrics baseline, strict React/TypeScript shell
+with generated health client, loopback-only digest-pinned local PostgreSQL, and
+least-privilege SHA-pinned CI.
+
+Final local evidence is recorded in `docs/verification/phase-1.md`. The primary
+clean run passed OpenAPI validation/generation, 26 backend unit/contract/
+architecture tests, five digest-pinned PostgreSQL integrations, strict npm
+installation and lifecycle-policy checks, three policy plus 14 frontend tests,
+contract drift, lint, production build, vulnerability audit with zero findings,
+Compose validation, diff/secret hygiene, and live API/web/database outage and
+recovery QA. Independent backend and frontend re-reviews are SAFE; QA is PASS.
+
+Known limitations are the OpenAPI Generator 3.1 beta warning, lack of a Phase 1
+real-browser automation harness, and hosted GitHub Actions/Gitleaks evidence
+being intentionally deferred to the final deployment-readiness gate. Draft PR
+#5's first two hosted runs created all four jobs with zero executed steps because
+GitHub reported an account payment/spending-limit restriction. That restriction
+does not invalidate the completed local verification. After making the workflow
+manual, the complete local gate was rerun successfully: 26 backend tests, five
+PostgreSQL integrations, clean frontend install/policy/contract/lint, three
+policy plus 14 UI/API tests, production build, zero-vulnerability audit, Compose
+validation, and workflow/diff checks. The hosted workflow must be dispatched
+during Phase 8 before deployment. Rollback is to stop or remove the API and web
+deployment and stop Compose while preserving its volume. Flyway V1 is a small
+additive migration; do not attempt an ad-hoc destructive down migration. The
+next step is product-owner-approved CP-1 merge, `main` synchronization, and only
+then Phase 2.

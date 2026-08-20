@@ -6,6 +6,9 @@ This document defines behavior and resource shapes. The implementation will make
 
 - Base path: `/api/v1`
 - Authentication: bearer JWT for REST; equivalent authenticated identity for MCP.
+  The only Phase 1 exception is unauthenticated `GET /api/v1/health/live` and
+  `GET /api/v1/health/ready`, which expose bounded status only for platform
+  probes and never return dependency details.
 - Every response includes or echoes `X-Request-Id`.
 - Commands accept `Idempotency-Key` where specified.
 - Secrets are write-only.
@@ -200,4 +203,3 @@ Executes only when the MCP identity and connection policy allow direct execution
 - Tool output is capped by rows, bytes, column count, and text-cell length.
 - Tool descriptions state that answers originate from a connected database and may require clarification.
 - Connection IDs are opaque and non-enumerable.
-

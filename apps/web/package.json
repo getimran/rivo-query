@@ -1,0 +1,53 @@
+{
+  "name": "@rivoquery/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0 <21 || >=22.12.0",
+    "npm": ">=11.19.0 <12"
+  },
+  "scripts": {
+    "api:check": "npm run api:generate -- --check",
+    "api:generate": "openapi-typescript ../api/src/main/resources/openapi/rivoquery-v1.yaml --output src/api/generated/rivoquery.ts --immutable --alphabetize",
+    "build": "tsc -b && vite build",
+    "dev": "vite",
+    "install-scripts:check": "node scripts/check-install-scripts.mjs && npm install-scripts ls",
+    "install-scripts:test": "node --test scripts/install-script-policy.test.mjs",
+    "lint": "eslint src scripts vite.config.ts --max-warnings 0",
+    "preview": "vite preview",
+    "test": "npm run install-scripts:test && vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "22.17.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "5.2.0",
+    "@vitest/coverage-v8": "4.1.10",
+    "axe-core": "4.13.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "eslint-plugin-react-refresh": "0.4.26",
+    "jsdom": "26.1.0",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.67.0",
+    "vite": "7.3.6",
+    "vitest": "4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
+  }
+}
