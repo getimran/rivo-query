@@ -51,7 +51,7 @@ After each phase:
 - Run the changed application locally when it is runnable and exercise the affected path.
 - Add or update meaningful unit tests for each behavior change.
 - Run the full verification commands.
-- Ask Codex to create a `sanity-runner` sub-agent for an independent final verification of the diff, acceptance criteria, local run, unit coverage, and relevant checks.
+- After the product implementation is runnable and normal automated verification passes, ask Codex to run `sanity_runner` against live APIs and critical product functionality. Do not invoke it for documentation, configuration, planning, static review, or as a generic pre-push check.
 - Update `PLANS.md` Outcomes.
 - Resolve blocking findings, then commit and push only after review and verification pass.
 - Confirm every earlier pull request targeting `main` is merged before creating another pull request.

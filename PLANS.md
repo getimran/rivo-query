@@ -12,6 +12,8 @@ Deliver a production-oriented vertical slice in which an authenticated user can 
 - [x] Architecture and security baseline
 - [x] ADR baseline
 - [x] Codex and VS Code workspace baseline
+- [x] Solution design and independent design review
+- [x] Execution-ready task decomposition through Phase 8
 - [ ] Phase 1: repository and backend bootstrap
 - [ ] Phase 2: connection control plane
 - [ ] Phase 3: schema discovery and relevance selection
@@ -20,6 +22,16 @@ Deliver a production-oriented vertical slice in which an authenticated user can 
 - [ ] Phase 6: web console
 - [ ] Phase 7: MCP interface
 - [ ] Phase 8: hardening and release candidate
+
+The stable task-level plan is `docs/IMPLEMENTATION_TASKS.md`. It is the
+authoritative dependency, ownership, parallel-wave, evidence, and integration
+register for these phases. Keep the phase summaries and outcomes here synchronized
+at serialized integration checkpoints; do not have parallel agents edit this file.
+
+Current constraint (2026-08-20): PR #3 is still open. The local
+`docs/solution-design-and-plan` branch must not be pushed and no new PR may be
+created until PR #3 has merged. After it merges, update from `main` and use one
+design/planning checkpoint PR before Phase 1.
 
 ## Phase 1 — Repository and backend bootstrap
 
@@ -119,18 +131,32 @@ Acceptance:
 
 Record unexpected constraints, failed assumptions, library incompatibilities, database-dialect differences, or security findings here with dates and evidence.
 
-- None yet.
+- 2026-08-20: The approved design exposes phase-gated decisions and security
+  prerequisites that are not implementation-ready yet: outbound destination
+  enforcement before Phase 2; durable worker fencing before Phase 3; parser and
+  canonicalization before Phase 4; preview replay and terminal audit semantics
+  before Phase 5; and identity/export, MCP, and hosting decisions at their
+  consuming phases. These are now explicit dependencies in the task register.
 
 ## Decision log
 
 Record implementation-level decisions that do not yet justify an ADR.
 
-- 2026-08-20: Project-scoped Codex agents cover product research, solution/API design, design review, planning, backend/frontend implementation and review, QA, DevOps, and final sanity verification; the primary agent coordinates handoffs and resolves conflicts.
-- 2026-08-20: All changes must use a focused feature branch, pass local execution and relevant/full checks with meaningful unit coverage, receive independent `sanity-runner` verification before push, and reach `main` only through a pull request.
+- 2026-08-20: Project-scoped Codex agents cover product research, solution/API design, design review, planning, backend/frontend implementation and review, QA, DevOps, and post-implementation API/functional sanity testing; the primary agent coordinates handoffs and resolves conflicts.
+- 2026-08-20: All changes must use a focused feature branch, pass applicable local execution and relevant/full checks with meaningful unit coverage and independent review/QA, and reach `main` only through a pull request. `sanity_runner` is not a pre-push gate; it runs only against a runnable implemented product.
 - 2026-08-20: Keep pull requests to `main` serial: merge every earlier pull request before creating another. Store durable project context and verification evidence in version-controlled repository files rather than relying on chat or PR-only context.
 - 2026-08-20: Product name fixed as RivoQuery; internal SQL policy component named QuerySentry.
 - 2026-08-20: Initial target databases are PostgreSQL and MySQL.
 - 2026-08-20: LLM provider is deliberately abstracted; no provider is selected as a product dependency.
+- 2026-08-20: Phase work follows the stable IDs and exact dependencies in
+  `docs/IMPLEMENTATION_TASKS.md`. Dependency-independent, non-overlapping tasks
+  may run in named parallel groups, but contracts, migrations, shared interfaces,
+  generated clients, `PLANS.md`, reviews/QA, and one PR per checkpoint are
+  serialized integration points.
+- 2026-08-20: Phase 1 is limited to `prompts/01-bootstrap-platform.md`, including
+  only the minimal heartbeat/version migration. Future-state product tables and
+  connection, catalog, model, policy, and execution behavior begin in their
+  consuming phases.
 
 ## Outcomes and retrospective
 
