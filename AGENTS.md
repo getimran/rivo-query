@@ -58,8 +58,12 @@ Integration tests require a Docker-compatible runtime and Testcontainers. If a r
 
 ## Planning and review
 
+- Never make project changes directly on `main`; create a focused feature branch first.
+- Before pushing, run the changed application locally when it is runnable and execute the narrowest relevant checks plus the full verification suite.
+- Add or update meaningful unit tests for every behavior change; do not treat build-only or superficial tests as sufficient coverage.
+- Before pushing, delegate a final independent verification to a `sanity-runner` sub-agent. Give it the changed scope, acceptance criteria, and commands to run; resolve its blocking findings or document any unavailable check precisely.
+- Push only after local verification and the `sanity-runner` review succeed, then open a pull request targeting `main`. Do not merge directly into `main`.
 - Keep changes small enough to review.
 - Record material architectural choices as ADRs.
 - Update `PLANS.md` progress, surprises, decisions, and outcomes while working.
 - Follow `docs/CODE_REVIEW.md` for self-review and PR review.
-

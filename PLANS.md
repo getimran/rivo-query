@@ -125,6 +125,7 @@ Record unexpected constraints, failed assumptions, library incompatibilities, da
 
 Record implementation-level decisions that do not yet justify an ADR.
 
+- 2026-08-20: All changes must use a focused feature branch, pass local execution and relevant/full checks with meaningful unit coverage, receive independent `sanity-runner` verification before push, and reach `main` only through a pull request.
 - 2026-08-20: Product name fixed as RivoQuery; internal SQL policy component named QuerySentry.
 - 2026-08-20: Initial target databases are PostgreSQL and MySQL.
 - 2026-08-20: LLM provider is deliberately abstracted; no provider is selected as a product dependency.
@@ -132,4 +133,3 @@ Record implementation-level decisions that do not yet justify an ADR.
 ## Outcomes and retrospective
 
 Complete after each phase: what shipped, checks run, known limitations, and the safest next step.
-
