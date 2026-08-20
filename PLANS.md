@@ -28,15 +28,12 @@ authoritative dependency, ownership, parallel-wave, evidence, and integration
 register for these phases. Keep the phase summaries and outcomes here synchronized
 at serialized integration checkpoints; do not have parallel agents edit this file.
 
-Repository gate update (2026-08-20): PR #3 is merged and
-the design/planning checkpoint PR #4 is merged. Phase 1 is active on
-`feat/phase-1-platform-bootstrap`; its implementation and local acceptance
-checks are complete within the bootstrap prompt. Draft CP-1 is PR #5. Its first
-hosted CI run (`32363020594`) did not start any job because GitHub reported an
-account payment/spending-limit restriction. The product owner subsequently
-deferred GitHub Actions until the complete product is ready for deployment and
-accepted full local suites, independent review, and QA as the development PR
-gate. CP-1 must merge before Phase 2 begins.
+Repository gate update (2026-08-20): CP-1 PR #5 passed the complete local gate
+and merged to `main` as `938d67b`. Local `main` was fast-forwarded to that exact
+commit, no pull request remains open, and Phase 2 is active on
+`feat/phase-2-connection-control-plane`. Product, destination-enforcement, and
+secret-store decisions are the only active Phase 2 work until their review gate
+passes. GitHub Actions remains deferred to final deployment readiness.
 
 ## Phase 1 — Repository and backend bootstrap
 
@@ -164,6 +161,12 @@ Record unexpected constraints, failed assumptions, library incompatibilities, da
   lifecycle-script approvals were not fail-closed. The fixes added a contracted
   406, an application input port plus ArchUnit guard, and strict exact-version
   lifecycle-script enforcement with regressions. Both re-reviews are SAFE.
+- 2026-08-20: Phase 2 entry review initially rejected unapproved product-policy
+  claims plus incomplete audit, secret-grant, DNS, pool, and driver/TLS task
+  traceability. The technical fixes now pass independent re-review. P2-040 is
+  blocked solely until the product owner explicitly approves the proposed
+  administrator-only and workspace-selection semantics in
+  `docs/product-decisions/phase-2.md`.
 
 ## Decision log
 
@@ -189,6 +192,13 @@ Record implementation-level decisions that do not yet justify an ADR.
   exception. They expose bounded status only; liveness has no dependency call,
   readiness uses an application input port and the control heartbeat, and all
   other product REST operations remain subject to the planned JWT baseline.
+- 2026-08-20: ADR-0013 selects complete all-answer destination validation,
+  short-lived vetted-address capabilities, driver socket hooks preserving the
+  original TLS hostname, pool revalidation/drain, operator-only private rules,
+  and independent egress. Secret access uses sole grant issuer
+  `SecretCapabilityAuthority`, binding-aware destructible leases, external local
+  ciphertext storage, bounded failed-validation retention, and durable
+  stage/switch/revoke compensation.
 
 ## Outcomes and retrospective
 

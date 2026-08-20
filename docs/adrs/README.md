@@ -16,4 +16,4 @@ ADRs are immutable historical records. To change an accepted decision, add a new
 | 0010 | REST first, MCP as an adapter | Accepted |
 | 0011 | Metadata-only audit and privacy-safe telemetry | Accepted |
 | 0012 | React/TypeScript web console | Accepted |
-
+| 0013 | Vetted-address outbound destination enforcement | Accepted |
