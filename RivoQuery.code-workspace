@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "name": "RivoQuery",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/target": true,
+      "**/node_modules": true,
+      "**/dist": true
+    },
+    "search.exclude": {
+      "**/target": true,
+      "**/node_modules": true,
+      "**/dist": true
+    }
+  }
+}
+
