@@ -65,9 +65,9 @@ Git/GitHub gates are marked `N/A (external)`.
 
 ## 2. Branch, PR, and parallel-work protocol
 
-- `PR #3` is open as of 2026-08-20. The current
-  `docs/solution-design-and-plan` branch must not be pushed and no PR may be
-  opened from it until PR #3 is merged.
+- `PR #3` merged on 2026-08-20. The current
+  `docs/solution-design-and-plan` branch includes the updated `main` baseline
+  and is eligible for the `CP-DESIGN` review checkpoint.
 - Integration checkpoints are `CP-DESIGN`, then `CP-1` through `CP-8`. Each
   checkpoint uses one focused feature branch and one PR targeting `main`.
 - A checkpoint PR may be created only after every earlier PR targeting `main`
@@ -90,8 +90,8 @@ Git/GitHub gates are marked `N/A (external)`.
 | DES-001 | COMPLETE | `solution_architect` | None | D0 | `docs/SOLUTION_DESIGN.md` | End-to-end solution design reconciles the PRD, architecture, threat model, accepted ADRs, contracts, tests, operations, and prompts; evidence is the reviewed document. |
 | DES-002 | COMPLETE | `solution_design_reviewer` | DES-001 | D1 | `docs/SOLUTION_DESIGN_REVIEW.md` | Independent review records severity, dispositions, phase gates, and validation gaps; every required correction is reflected in DES-001. |
 | PLAN-001 | COMPLETE | `task_planner` | DES-002 | D2 | `docs/IMPLEMENTATION_TASKS.md`, `PLANS.md` | Stable tasks, exact dependencies, safe parallel groups, owners, paths, acceptance, evidence, and checkpoints exist through Phase 8; validate links and task IDs with `rg`. |
-| GOV-000 | PENDING | primary agent | None | SERIAL-GOV | N/A (external) | Confirm PR #3 is merged. This is an external repository-state gate; evidence is the merged PR state and absence of an earlier open PR targeting `main`. |
-| GOV-001 | PENDING | primary agent | GOV-000 | SERIAL-GOV | `PLANS.md` | Fetch/update `main`, confirm no earlier open PR, rebase or recreate the design branch from current `main`, and record the clean base; evidence: `git status --short --branch`, `git log`, and GitHub PR state. |
+| GOV-000 | COMPLETE | primary agent | None | SERIAL-GOV | N/A (external) | PR #3 merged as commit `55899c3`; GitHub showed no other open pull request targeting `main`. |
+| GOV-001 | COMPLETE | primary agent | GOV-000 | SERIAL-GOV | `PLANS.md` | Fetched `origin/main` and merged it into `docs/solution-design-and-plan` without conflicts; the branch includes the PR #3 policy baseline. |
 | GOV-002 | PENDING | primary agent | GOV-001, PLAN-001 | SERIAL-GOV | `docs/SOLUTION_DESIGN.md`, `docs/SOLUTION_DESIGN_REVIEW.md`, `docs/IMPLEMENTATION_TASKS.md`, `PLANS.md` | Review, commit, push, and open `CP-DESIGN`; accept only when the diff contains durable design/planning records, repository checks pass, and the PR targets `main`. No product sanity run applies. |
 | GOV-003 | PENDING | primary agent | GOV-002 | SERIAL-GOV | `PLANS.md` | Confirm `CP-DESIGN` merged and local `main` matches origin before Phase 1 starts. |
 

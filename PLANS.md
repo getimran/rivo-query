@@ -28,10 +28,9 @@ authoritative dependency, ownership, parallel-wave, evidence, and integration
 register for these phases. Keep the phase summaries and outcomes here synchronized
 at serialized integration checkpoints; do not have parallel agents edit this file.
 
-Current constraint (2026-08-20): PR #3 is still open. The local
-`docs/solution-design-and-plan` branch must not be pushed and no new PR may be
-created until PR #3 has merged. After it merges, update from `main` and use one
-design/planning checkpoint PR before Phase 1.
+Repository gate update (2026-08-20): PR #3 is merged and
+`docs/solution-design-and-plan` includes the updated `main` baseline. The next
+allowed pull request is the single design/planning checkpoint before Phase 1.
 
 ## Phase 1 — Repository and backend bootstrap
 
