@@ -130,5 +130,26 @@ before execution: backend verification, frontend checks, Compose validation, and
 the full-history Gitleaks scan each have zero steps and the same GitHub annotation
 that recent account payments failed or the spending limit must be increased.
 These hosted checks are blocked external evidence and are not claimed as passed.
-After the account restriction is resolved, rerun all four jobs and record their
-results before CP-1 is eligible to merge.
+On 2026-08-20 the product owner deferred hosted Actions until the complete
+product is ready for deployment and accepted the full local suites, independent
+reviews, and QA recorded above as the development checkpoint gate. The workflow
+is manually dispatched and all hosted release checks, including full-history
+Gitleaks, remain mandatory Phase 8 deployment-readiness evidence. They are not a
+CP-1 merge dependency.
+
+## Local checkpoint re-verification after hosted-CI deferral
+
+After changing the hosted workflow to manual release-only dispatch, the complete
+development gate was rerun locally on 2026-08-20:
+
+- Java 21 Maven `verify` passed 26 unit/contract/architecture tests and five
+  digest-pinned PostgreSQL Testcontainers integration tests with no failures,
+  errors, or skips.
+- Clean `npm ci`, reviewed lifecycle-script policy, generated-client drift,
+  lint, three policy tests, 14 UI/API tests, coverage, production build, and
+  registry audit passed; the audit reported zero vulnerabilities.
+- Local Compose configuration validation passed.
+- Workflow parsing confirmed `workflow_dispatch` is the sole trigger and the
+  backend, frontend, Compose, and secret-scan release jobs remain present.
+- `git diff --check` passed. No application behavior, API contract, migration,
+  dependency, or deployment topology changed in the CI-policy update.

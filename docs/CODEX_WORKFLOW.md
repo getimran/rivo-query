@@ -64,6 +64,7 @@ After each phase:
 - After the product implementation is runnable and normal automated verification passes, ask Codex to run `sanity_runner` against live APIs and critical product functionality. Do not invoke it for documentation, configuration, planning, static review, or as a generic pre-push check.
 - Update `PLANS.md` Outcomes.
 - Resolve blocking findings, then commit and push only after review and verification pass.
+- Use the applicable local suites, independent review, and QA as the development PR gate. Keep GitHub Actions manually dispatched and run its complete release-readiness workflow only after the full product is ready for deployment.
 - Confirm every earlier pull request targeting `main` is merged before creating another pull request.
 - Open a pull request from the feature branch to `main`; do not merge changes directly into `main`.
 - Keep durable requirements, decisions, plans, verification evidence, operational impacts, and outcomes in version-controlled repository documentation.

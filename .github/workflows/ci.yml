@@ -1,12 +1,8 @@
-name: CI
+name: Release readiness CI
 
+# Hosted verification is intentionally manual during product development. Run
+# it as part of the Phase 8 release/deployment-readiness gate.
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:

@@ -82,6 +82,7 @@ Integration tests require a Docker-compatible runtime and Testcontainers. If a r
 - Before pushing, run the changed application locally when it is runnable and execute the narrowest relevant checks plus the full verification suite.
 - Add or update meaningful unit tests for every behavior change; do not treat build-only or superficial tests as sufficient coverage.
 - Before pushing, complete the required local verification, independent code review, and QA appropriate to the change; resolve blocking findings or document any unavailable check precisely.
+- Treat the applicable local suites, independent review, and QA as the development pull-request verification gate. GitHub Actions is manually dispatched only when the complete product is ready for final deployment verification; do not require hosted Actions for intermediate phase PRs.
 - Push only after the applicable review and verification succeed, then open a pull request targeting `main`. Do not merge directly into `main`.
 - Before creating a new pull request, verify that every earlier pull request targeting `main` has been merged. Keep at most one open change pull request at a time unless the user explicitly approves an exception.
 - Record durable requirements, decisions, plans, architecture, verification evidence, operational impacts, and outcomes in version-controlled repository files; do not leave essential project context only in chat, agent output, or pull-request descriptions.

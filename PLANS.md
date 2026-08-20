@@ -33,8 +33,10 @@ the design/planning checkpoint PR #4 is merged. Phase 1 is active on
 `feat/phase-1-platform-bootstrap`; its implementation and local acceptance
 checks are complete within the bootstrap prompt. Draft CP-1 is PR #5. Its first
 hosted CI run (`32363020594`) did not start any job because GitHub reported an
-account payment/spending-limit restriction. CP-1 must pass hosted CI and merge
-before Phase 2 begins.
+account payment/spending-limit restriction. The product owner subsequently
+deferred GitHub Actions until the complete product is ready for deployment and
+accepted full local suites, independent review, and QA as the development PR
+gate. CP-1 must merge before Phase 2 begins.
 
 ## Phase 1 — Repository and backend bootstrap
 
@@ -209,13 +211,17 @@ Compose validation, diff/secret hygiene, and live API/web/database outage and
 recovery QA. Independent backend and frontend re-reviews are SAFE; QA is PASS.
 
 Known limitations are the OpenAPI Generator 3.1 beta warning, lack of a Phase 1
-real-browser automation harness, and unavailable hosted GitHub Actions/Gitleaks
-evidence. Draft PR #5 is open, but run `32363020594` created all four jobs with
-zero executed steps; every job reports that recent account payments failed or
-the spending limit must be increased. This is an external GitHub account gate,
-not a local verification or workflow-command failure. Rollback is to stop/remove
-the API and web deployment and stop Compose while preserving its volume. Flyway
-V1 is a small additive migration; do not attempt an ad-hoc destructive down
-migration. The safest next step is to resolve the GitHub billing/spending-limit
-restriction, rerun and require CP-1 hosted checks, merge it, synchronize `main`,
-and only then start Phase 2.
+real-browser automation harness, and hosted GitHub Actions/Gitleaks evidence
+being intentionally deferred to the final deployment-readiness gate. Draft PR
+#5's first two hosted runs created all four jobs with zero executed steps because
+GitHub reported an account payment/spending-limit restriction. That restriction
+does not invalidate the completed local verification. After making the workflow
+manual, the complete local gate was rerun successfully: 26 backend tests, five
+PostgreSQL integrations, clean frontend install/policy/contract/lint, three
+policy plus 14 UI/API tests, production build, zero-vulnerability audit, Compose
+validation, and workflow/diff checks. The hosted workflow must be dispatched
+during Phase 8 before deployment. Rollback is to stop or remove the API and web
+deployment and stop Compose while preserving its volume. Flyway V1 is a small
+additive migration; do not attempt an ad-hoc destructive down migration. The
+next step is product-owner-approved CP-1 merge, `main` synchronization, and only
+then Phase 2.
