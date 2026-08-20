@@ -58,8 +58,16 @@ Integration tests require a Docker-compatible runtime and Testcontainers. If a r
 
 ## Planning and review
 
+- Delegate substantial work to the project-scoped custom agents in `.codex/agents/`:
+  - Use `prd_researcher` when scope may change product requirements.
+  - Use `solution_architect`, `api_architect`, and `solution_design_reviewer` before implementation when architecture or contracts materially change.
+  - Use `task_planner` to turn approved designs into ordered tasks and acceptance checks.
+  - Use `backend_engineer` and `frontend_engineer` for their respective implementation areas; avoid parallel edits to overlapping files.
+  - Use `backend_code_reviewer` and `frontend_code_reviewer` for independent diff review.
+  - Use `qa_tester` for risk-based functional and regression testing and `devops_engineer` for delivery and operational changes.
+  - Use `sanity_runner` as the final independent pre-push verification gate.
+- The primary agent owns orchestration, resolves conflicting recommendations, and remains accountable for the final result.
 - Keep changes small enough to review.
 - Record material architectural choices as ADRs.
 - Update `PLANS.md` progress, surprises, decisions, and outcomes while working.
 - Follow `docs/CODE_REVIEW.md` for self-review and PR review.
-
