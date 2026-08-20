@@ -35,6 +35,16 @@ Use prompts in order:
 
 Each prompt asks Codex to inspect the repository, restate the exact scope, update the plan, implement, test, and self-review. Do not combine phases until the previous acceptance criteria pass.
 
+### Efficient context and delegation
+
+The [official Codex subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents) notes that each subagent consumes additional tokens and recommends concise summaries, bounded delegation, and care with parallel write-heavy work.
+
+- Search and read narrowly, and reuse established repository context instead of repeatedly loading unchanged files or output.
+- Delegate only bounded specialist or independent-review work, with minimal sufficient context and a concise return contract.
+- Prefer parallel read-heavy investigation where useful; serialize overlapping implementation work.
+- Use narrow checks during iteration and the complete required verification when the change is stable.
+- Treat quality, security, test coverage, and truthful reporting as fixed requirements; optimize tokens around them, never through them.
+
 ## 4. Checkpoints
 
 Before each phase:
