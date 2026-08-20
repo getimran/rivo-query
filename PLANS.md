@@ -128,6 +128,7 @@ Record implementation-level decisions that do not yet justify an ADR.
 - 2026-08-20: Project-scoped Codex agents cover product research, solution/API design, design review, planning, backend/frontend implementation and review, QA, DevOps, and final sanity verification; the primary agent coordinates handoffs and resolves conflicts.
 - 2026-08-20: All changes must use a focused feature branch, pass local execution and relevant/full checks with meaningful unit coverage, receive independent `sanity-runner` verification before push, and reach `main` only through a pull request.
 - 2026-08-20: Keep pull requests to `main` serial: merge every earlier pull request before creating another. Store durable project context and verification evidence in version-controlled repository files rather than relying on chat or PR-only context.
+- 2026-08-20: Agents must use tokens efficiently through targeted reads, bounded delegation, concise handoffs, reuse of established evidence, and narrow iterative checks, without reducing implementation quality, security analysis, test coverage, full verification, or truthful reporting.
 - 2026-08-20: Product name fixed as RivoQuery; internal SQL policy component named QuerySentry.
 - 2026-08-20: Initial target databases are PostgreSQL and MySQL.
 - 2026-08-20: LLM provider is deliberately abstracted; no provider is selected as a product dependency.
