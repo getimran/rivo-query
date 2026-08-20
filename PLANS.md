@@ -31,8 +31,10 @@ at serialized integration checkpoints; do not have parallel agents edit this fil
 Repository gate update (2026-08-20): PR #3 is merged and
 the design/planning checkpoint PR #4 is merged. Phase 1 is active on
 `feat/phase-1-platform-bootstrap`; its implementation and local acceptance
-checks are complete within the bootstrap prompt. CP-1 must pass hosted CI and
-merge before Phase 2 begins.
+checks are complete within the bootstrap prompt. Draft CP-1 is PR #5. Its first
+hosted CI run (`32363020594`) did not start any job because GitHub reported an
+account payment/spending-limit restriction. CP-1 must pass hosted CI and merge
+before Phase 2 begins.
 
 ## Phase 1 — Repository and backend bootstrap
 
@@ -207,9 +209,13 @@ Compose validation, diff/secret hygiene, and live API/web/database outage and
 recovery QA. Independent backend and frontend re-reviews are SAFE; QA is PASS.
 
 Known limitations are the OpenAPI Generator 3.1 beta warning, lack of a Phase 1
-real-browser automation harness, and hosted GitHub Actions/Gitleaks evidence
-remaining external until CP-1 is opened. Rollback is to stop/remove the API and
-web deployment and stop Compose while preserving its volume. Flyway V1 is a
-small additive migration; do not attempt an ad-hoc destructive down migration.
-The safest next step is to open CP-1, require hosted checks, merge it, synchronize
-`main`, and only then start Phase 2.
+real-browser automation harness, and unavailable hosted GitHub Actions/Gitleaks
+evidence. Draft PR #5 is open, but run `32363020594` created all four jobs with
+zero executed steps; every job reports that recent account payments failed or
+the spending limit must be increased. This is an external GitHub account gate,
+not a local verification or workflow-command failure. Rollback is to stop/remove
+the API and web deployment and stop Compose while preserving its volume. Flyway
+V1 is a small additive migration; do not attempt an ad-hoc destructive down
+migration. The safest next step is to resolve the GitHub billing/spending-limit
+restriction, rerun and require CP-1 hosted checks, merge it, synchronize `main`,
+and only then start Phase 2.

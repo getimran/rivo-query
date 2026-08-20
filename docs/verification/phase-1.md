@@ -125,6 +125,10 @@ no volume or migrated data was deleted.
 Independent backend/platform and frontend re-reviews returned SAFE after their
 findings were fixed and regression-tested. QA returned PASS. Primary integration
 repeated the clean backend/frontend suites, Compose validation, diff hygiene,
-and targeted secret scans. Hosted GitHub Actions, its full-history Gitleaks job,
-and GitHub runner behavior remain pending until the CP-1 pull request is opened;
-they are not claimed as locally passed.
+and targeted secret scans. Draft CP-1 is PR #5. Hosted run `32363020594` failed
+before execution: backend verification, frontend checks, Compose validation, and
+the full-history Gitleaks scan each have zero steps and the same GitHub annotation
+that recent account payments failed or the spending limit must be increased.
+These hosted checks are blocked external evidence and are not claimed as passed.
+After the account restriction is resolved, rerun all four jobs and record their
+results before CP-1 is eligible to merge.
