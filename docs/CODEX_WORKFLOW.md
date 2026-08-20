@@ -54,7 +54,9 @@ After each phase:
 - Ask Codex to create a `sanity-runner` sub-agent for an independent final verification of the diff, acceptance criteria, local run, unit coverage, and relevant checks.
 - Update `PLANS.md` Outcomes.
 - Resolve blocking findings, then commit and push only after review and verification pass.
+- Confirm every earlier pull request targeting `main` is merged before creating another pull request.
 - Open a pull request from the feature branch to `main`; do not merge changes directly into `main`.
+- Keep durable requirements, decisions, plans, verification evidence, operational impacts, and outcomes in version-controlled repository documentation.
 
 The official Codex IDE guidance recommends using editor context and Git checkpoints so changes remain reviewable and reversible: [Codex IDE extension](https://learn.chatgpt.com/docs/codex/ide).
 
