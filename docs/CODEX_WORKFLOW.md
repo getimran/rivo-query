@@ -35,6 +35,16 @@ Use prompts in order:
 
 Each prompt asks Codex to inspect the repository, restate the exact scope, update the plan, implement, test, and self-review. Do not combine phases until the previous acceptance criteria pass.
 
+### Efficient context and delegation
+
+The [official Codex subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents) notes that each subagent consumes additional tokens and recommends concise summaries, bounded delegation, and care with parallel write-heavy work.
+
+- Search and read narrowly, and reuse established repository context instead of repeatedly loading unchanged files or output.
+- Delegate only bounded specialist or independent-review work, with minimal sufficient context and a concise return contract.
+- Prefer parallel read-heavy investigation where useful; serialize overlapping implementation work.
+- Use narrow checks during iteration and the complete required verification when the change is stable.
+- Treat quality, security, test coverage, and truthful reporting as fixed requirements; optimize tokens around them, never through them.
+
 ## 4. Checkpoints
 
 Before each phase:
@@ -51,7 +61,7 @@ After each phase:
 - Run the changed application locally when it is runnable and exercise the affected path.
 - Add or update meaningful unit tests for each behavior change.
 - Run the full verification commands.
-- Ask Codex to create a `sanity-runner` sub-agent for an independent final verification of the diff, acceptance criteria, local run, unit coverage, and relevant checks.
+- After the product implementation is runnable and normal automated verification passes, ask Codex to run `sanity_runner` against live APIs and critical product functionality. Do not invoke it for documentation, configuration, planning, static review, or as a generic pre-push check.
 - Update `PLANS.md` Outcomes.
 - Resolve blocking findings, then commit and push only after review and verification pass.
 - Confirm every earlier pull request targeting `main` is merged before creating another pull request.
