@@ -39,6 +39,7 @@ Each prompt asks Codex to inspect the repository, restate the exact scope, updat
 
 Before each phase:
 
+- Create and switch to a focused feature branch; never implement directly on `main`.
 - Commit the current working baseline.
 - Ensure the tree has no unrelated uncommitted changes.
 - Confirm Docker and required runtimes are available.
@@ -47,9 +48,13 @@ After each phase:
 
 - Inspect the diff in VS Code.
 - Ask Codex to review uncommitted changes against `docs/CODE_REVIEW.md`.
+- Run the changed application locally when it is runnable and exercise the affected path.
+- Add or update meaningful unit tests for each behavior change.
 - Run the full verification commands.
+- Ask Codex to create a `sanity-runner` sub-agent for an independent final verification of the diff, acceptance criteria, local run, unit coverage, and relevant checks.
 - Update `PLANS.md` Outcomes.
-- Commit a checkpoint only after review.
+- Resolve blocking findings, then commit and push only after review and verification pass.
+- Open a pull request from the feature branch to `main`; do not merge changes directly into `main`.
 
 The official Codex IDE guidance recommends using editor context and Git checkpoints so changes remain reviewable and reversible: [Codex IDE extension](https://learn.chatgpt.com/docs/codex/ide).
 
@@ -72,4 +77,3 @@ When Codex repeats a mistake, correct the implementation and add a short, concre
 - Prefer synthetic local databases for development.
 - Store local secrets outside Git; use external secret/KMS integration for deployment.
 - If a test requires a real third-party model, use a dedicated low-privilege key and synthetic schema.
-
