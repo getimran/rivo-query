@@ -1,0 +1,150 @@
+openapi: 3.1.0
+info:
+  title: RivoQuery API
+  version: 1.0.0
+  description: Security-first RivoQuery REST API.
+servers:
+  - url: /
+paths:
+  /api/v1/health/live:
+    get:
+      tags:
+        - Health
+      operationId: getLiveness
+      summary: Check process liveness
+      description: Returns immediately without calling a downstream dependency.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The API process is live.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+  /api/v1/health/ready:
+    get:
+      tags:
+        - Health
+      operationId: getReadiness
+      summary: Check control-plane readiness
+      description: Performs a bounded lookup of the platform heartbeat singleton.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      responses:
+        '200':
+          description: The API and control database are ready.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          $ref: '#/components/responses/ControlDatabaseUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+components:
+  parameters:
+    RequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Optional caller request identifier. Invalid values are replaced.
+      schema:
+        $ref: '#/components/schemas/RequestId'
+  headers:
+    RequestId:
+      required: true
+      description: Accepted caller identifier or a server-generated replacement.
+      schema:
+        $ref: '#/components/schemas/RequestId'
+  responses:
+    NotAcceptable:
+      description: The requested response media type is not supported.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ControlDatabaseUnavailable:
+      description: The control database cannot currently satisfy readiness checks.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    InternalError:
+      description: An unexpected internal error occurred.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    RequestId:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+      examples:
+        - request-01J6MZ4H9S
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - UP
+    ProblemDetails:
+      type: object
+      description: RFC 9457 problem details with stable RivoQuery extensions.
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+        - code
+        - requestId
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 100
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{0,63}$'
+        requestId:
+          $ref: '#/components/schemas/RequestId'

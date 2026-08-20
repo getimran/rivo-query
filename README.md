@@ -2,7 +2,10 @@
 
 RivoQuery is a universal, security-first AI database retrieval agent. A user registers a database connection, asks a question in natural language, and receives a bounded result set plus the generated SQL and an explanation.
 
-This repository is currently an implementation-ready planning workspace for Codex in VS Code. The source code will be created in the phases described in `PLANS.md`.
+Phase 1 provides the runnable platform foundation: a Java 21 Spring Boot API,
+a strict React/TypeScript web shell, a generated OpenAPI client, and local
+PostgreSQL through Compose. Product workflows are delivered incrementally in
+the later phases described in `PLANS.md`.
 
 ## Product promise
 
@@ -30,9 +33,53 @@ Read these files in order:
 5. `PLANS.md`
 6. `AGENTS.md`
 
-Then open `prompts/01-bootstrap-platform.md` and submit it to Codex from the repository root.
+Then use `PLANS.md` and `docs/IMPLEMENTATION_TASKS.md` to select the next
+dependency-ready task.
 
-## Planned repository layout
+## Run the Phase 1 foundation
+
+Prerequisites are Java 21, Node.js 22.12 or another version allowed by
+`apps/web/package.json`, npm 11.19.x, and a Docker-compatible runtime with
+Compose.
+
+```bash
+cp .env.example .env
+docker-compose --env-file .env -f deploy/local/compose.yaml up -d --wait
+
+set -a
+. ./.env
+set +a
+./mvnw -f apps/api/pom.xml spring-boot:run
+```
+
+In another terminal:
+
+```bash
+npm --prefix apps/web ci
+npm --prefix apps/web run dev
+```
+
+Open `http://127.0.0.1:5173`. The web development server proxies `/api` to the
+Spring API at `127.0.0.1:8080`. Public Phase 1 probes are
+`GET /api/v1/health/live` and `GET /api/v1/health/ready`; no Actuator endpoint
+is exposed. See `deploy/local/README.md` for stop/reset guidance.
+
+## Verify
+
+```bash
+./mvnw -f apps/api/pom.xml verify
+npm --prefix apps/web run api:check
+npm --prefix apps/web run lint
+npm --prefix apps/web run test
+npm --prefix apps/web run build
+docker-compose --env-file .env.example -f deploy/local/compose.yaml config --quiet
+```
+
+Backend integration tests require a Docker-compatible runtime. Colima users may
+need to set `DOCKER_HOST` to its socket and
+`TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`.
+
+## Repository layout
 
 ```text
 apps/
@@ -57,7 +104,7 @@ Codex automatically reads repository `AGENTS.md` instructions, and more-specific
 - Architecture: defined
 - Security invariants: defined
 - ADR baseline: defined
-- Implementation: not started
+- Phase 1 platform bootstrap: implemented and locally verified
+- Phase 2 connection control plane: not started
 
 The authoritative progress log is `PLANS.md`.
-

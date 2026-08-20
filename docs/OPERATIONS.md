@@ -7,6 +7,28 @@
 - Target databases: reported per connection and do not determine global readiness.
 - LLM provider: dependency status metric; temporary failure does not make connection management unavailable.
 
+Phase 1 exposes only `GET /api/v1/health/live` and
+`GET /api/v1/health/ready`. Liveness performs no downstream call. Readiness
+performs a bounded lookup of the migrated control-database heartbeat and returns
+a safe RFC 9457 `CONTROL_DATABASE_UNAVAILABLE` response when that dependency is
+unusable. Both probes return or echo a validated `X-Request-Id`; they expose no
+database, schema, version, credential, or driver detail. Actuator web endpoints
+remain unexposed.
+
+For the local runbook, start PostgreSQL with the commands in
+`deploy/local/README.md`, load the synthetic `.env` values, and run:
+
+```bash
+./mvnw -f apps/api/pom.xml spring-boot:run
+npm --prefix apps/web run dev
+```
+
+Stop the API and web processes normally, then preserve local database data with:
+
+```bash
+docker-compose --env-file .env -f deploy/local/compose.yaml down
+```
+
 ## Required dashboards
 
 - Request rate/errors/latency by operation
@@ -71,4 +93,3 @@
 - Account for multiplied target pool limits across replicas.
 - Use external secrets and network policy.
 - Roll back application independently; never roll back destructive migrations without an explicit tested plan.
-

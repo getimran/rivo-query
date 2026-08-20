@@ -38,6 +38,7 @@ The MCP adapter may be embedded in the API process initially. It must call the s
 
 ```text
 com.knowimran.rivoquery
+  application/        cross-module input use-case ports and safe application errors
   identity/           caller and tenant context, authorization ports
   connection/         connection aggregate, destination policy, secret references
   catalog/            normalized schema model, discovery, snapshots, selection
@@ -261,4 +262,3 @@ Target database pools are process-local. Horizontal scaling therefore multiplies
 - Add more SQL connectors only after compatibility, safety, and normalization suites exist.
 - Add deterministic charts/result summaries without sending raw rows to an LLM.
 - Consider a managed execution worker tier only when connector fan-out or isolation requirements justify it.
-

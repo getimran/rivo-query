@@ -16,3 +16,6 @@ node_modules/
 dist/
 coverage/
 
+# Local container overrides and bind-mounted data
+deploy/local/compose.override.yaml
+deploy/local/data/
