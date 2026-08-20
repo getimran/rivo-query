@@ -1,6 +1,6 @@
 # Phase 2 product decisions: workspace and connection administration
 
-Status: PROPOSED — awaiting explicit product-owner approval
+Status: APPROVED
 
 Decision owner: Product owner
 
@@ -13,14 +13,14 @@ Applies to: Phase 2 identity and connection control plane
 The PRD makes the workspace the tenant boundary, identifies a workspace
 administrator as the actor who registers and operates database connections,
 and requires server-side membership and connection authorization. ADR-0009
-rejects a request-body tenant ID as authority. The solution design recommends
-administrator-only connection creation and explicit multi-workspace selection,
-but the PRD still marks the administrator restriction as an open product
-decision. This proposal makes the recommended defaults testable without
-asserting product-owner approval or expanding Phase 2 into workspace
-provisioning, schema discovery, or query execution.
+rejects a request-body tenant ID as authority. The product owner explicitly
+approved all three P2-010 defaults on 2026-08-20: administrator-only connection
+administration, server-derived multi-workspace discovery, and mandatory exact
+workspace-selector semantics. This record makes those accepted decisions
+testable without expanding Phase 2 into workspace provisioning, schema
+discovery, or query execution.
 
-## Proposed decisions
+## Decisions
 
 ### PD2-001: connection administration is administrator-only
 
@@ -105,26 +105,24 @@ semantics and must not be shared across selectors.
 - `ADMINISTRATOR` and `MEMBER` are effective product roles. Identity-provider
   group/claim mappings may locate an external identity, but current membership
   persistence remains authoritative.
-- The proposal selects requiring the header even for a caller with one
-  membership over implicit selection. It costs one client step but avoids
-  environment-dependent defaults, confused-deputy behavior, and accidental
-  cross-workspace requests.
+- Requiring the header even for a caller with one membership was selected over
+  implicit selection. It costs one client step but avoids environment-dependent
+  defaults, confused-deputy behavior, and accidental cross-workspace requests.
 - A generic tenant ID in a body, query parameter, or trusted JWT claim was
-  rejected by the proposal because it conflicts with ADR-0009 and permits
-  stale or tampered authority.
-- The proposal selects one indistinguishable `403` for invalid membership
-  selection over distinct not-found/member-state responses to avoid workspace
+  rejected because it conflicts with ADR-0009 and permits stale or tampered
+  authority.
+- Returning one indistinguishable `403` for invalid membership selection was
+  selected over distinct not-found/member-state responses to avoid workspace
   enumeration. Resource-level inaccessible connection IDs should likewise be
   indistinguishable from unknown IDs as the API contract defines.
-- The proposal rejects allowing members with `MANAGE` to administer a
-  connection in the MVP. It creates a delegated-administration model that the
-  current product roles, onboarding flow, and audit requirements do not yet
-  specify.
+- Allowing members with `MANAGE` to administer a connection was rejected for
+  the MVP. It creates a delegated-administration model that the current product
+  roles, onboarding flow, and audit requirements do not yet specify.
 
-## Explicit product-owner approval required
+## Approval record
 
-Implementation must not treat this proposal as approved until the product owner
-answers all three questions explicitly:
+On 2026-08-20, the product owner explicitly answered “Approved” to all three
+P2-010 questions:
 
 1. Do you approve restricting connection creation and every administrative
    connection lifecycle and permission action to active workspace
@@ -137,10 +135,9 @@ answers all three questions explicitly:
    the stated `400`/non-enumerating `403` behavior, no implicit single-workspace
    fallback, and rejection of that selector on the discovery operation?
 
-Until approval, P2-040 and dependent contract or implementation tasks remain
-blocked. After approval, the PRD must be updated to replace its open connection
-creation decision and add the accepted workspace-selection requirements before
-contracts or code rely on them.
+This approval clears the P2-010 product-decision gate for P2-040 and its
+dependent contract and implementation tasks. The corresponding accepted
+requirements are recorded in the PRD.
 
 ## Product-owner decisions intentionally deferred beyond this approval
 
@@ -175,9 +172,7 @@ workspace-create or invitation endpoint is implied.
 | Browser isolation | Switching workspaces clears prior connection data, requests, and secret fields; cache keys include the selected workspace and workspace responses are not shared or persistently cached. |
 | Safe observability | Tests prove tokens, membership claims, secrets, endpoint credentials, and raw driver details are absent from responses, logs, traces, and metrics; audit metadata records actor, selected workspace, action, and outcome. |
 
-Traceability: existing PRD `FR-CON-002`, `FR-CON-004`, `FR-CON-007`,
-`FR-IAM-002` through `FR-IAM-005`, and `NFR-SEC-001`; architecture sections 6,
-13, and 14; security threat model sections 3, 5, 7, and 8; ADR-0009; Phase 2
-tasks P2-040, P2-050, P2-060, P2-100, P2-130, P2-140, P2-150, P2-160, and
-P2-170. If approved, PD2-001 through PD2-003 must be translated into explicit
-PRD requirements before downstream contracts or code rely on them.
+Traceability: PRD `FR-CON-002`, `FR-CON-004`, `FR-CON-007`, `FR-IAM-002`
+through `FR-IAM-007`, and `NFR-SEC-001`; architecture sections 6, 13, and 14;
+security threat model sections 3, 5, 7, and 8; ADR-0009; Phase 2 tasks P2-040,
+P2-050, P2-060, P2-100, P2-130, P2-140, P2-150, P2-160, and P2-170.

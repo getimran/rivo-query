@@ -86,8 +86,13 @@ If intent is materially ambiguous, the sequence stops after generation and retur
 
 ## 6. Connection onboarding sequence
 
-1. Authenticate and require `MANAGE_CONNECTION`.
-2. Validate fields and database type.
+1. Authenticate, resolve the exact `X-RivoQuery-Workspace-Id` selector through
+   current server-side membership, and require an active workspace
+   administrator with effective `MANAGE`.
+2. Validate fields and database type at the HTTP interface boundary, including
+   custom cross-field checks that generated Java validation does not provide:
+   reject empty connection patches and require client certificate/private-key
+   material to be supplied as a pair.
 3. Resolve the hostname and apply outbound destination policy to all resolved addresses.
 4. Require the configured TLS mode.
 5. Store the secret through `SecretStore`; persist only a secret reference and redacted metadata.

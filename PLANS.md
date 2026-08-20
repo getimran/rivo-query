@@ -35,6 +35,12 @@ commit, no pull request remains open, and Phase 2 is active on
 secret-store decisions are the only active Phase 2 work until their review gate
 passes. GitHub Actions remains deferred to final deployment readiness.
 
+Phase 2 entry-gate update (2026-08-20): the product owner explicitly approved
+administrator-only connection administration, administrators' effective
+`MANAGE`, no member `MANAGE` in MVP, server-derived workspace discovery, and an
+exact `X-RivoQuery-Workspace-Id` on every scoped request. The technical design
+gate is independently approved, so P2-040 contract work is active.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.
@@ -167,6 +173,12 @@ Record unexpected constraints, failed assumptions, library incompatibilities, da
   blocked solely until the product owner explicitly approves the proposed
   administrator-only and workspace-selection semantics in
   `docs/product-decisions/phase-2.md`.
+- 2026-08-20: Phase 2 contract review initially found stale health-only tests,
+  administrator links required in member summaries, unenforced cross-field
+  schema constraints, unbounded permission listing, and unintended health cache
+  headers. The final contract makes links permission-filtered, paginates grants,
+  marks mandatory runtime validators, preserves Phase 1 health exactly, and has
+  eight operation-wide contract tests. Independent re-review is APPROVED.
 
 ## Decision log
 
@@ -199,6 +211,10 @@ Record implementation-level decisions that do not yet justify an ADR.
   `SecretCapabilityAuthority`, binding-aware destructible leases, external local
   ciphertext storage, bounded failed-validation retention, and durable
   stage/switch/revoke compensation.
+- 2026-08-20: The product owner approved Phase 2's administrator-only connection
+  model and mandatory explicit workspace selector. The accepted requirements are
+  recorded as FR-CON-007 and FR-IAM-006/007; bootstrap provisioning, reference
+  IdP, delegated administration, and cross-workspace operators remain deferred.
 
 ## Outcomes and retrospective
 

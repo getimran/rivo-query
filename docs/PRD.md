@@ -82,7 +82,7 @@ RivoQuery must reduce the effort to obtain answers without pretending that model
 - **FR-CON-004:** Never return a stored secret after creation.
 - **FR-CON-005:** Encrypt secrets using a pluggable secret provider; production supports managed KMS/Vault integration.
 - **FR-CON-006:** Test connections using strict connect/read timeouts and normalized errors.
-- **FR-CON-007:** Allow connection owners to disable, rotate, test, or delete a connection.
+- **FR-CON-007:** Restrict connection creation, configuration, testing, secret rotation, disable/re-enable, deletion, and permission administration to an active administrator of the selected workspace.
 - **FR-CON-008:** Enforce allowed schema/table patterns and deny system schemas by default.
 - **FR-CON-009:** Apply an outbound destination policy to mitigate SSRF and access to prohibited networks.
 
@@ -127,6 +127,8 @@ RivoQuery must reduce the effort to obtain answers without pretending that model
 - **FR-IAM-003:** Support administrator and member roles plus connection-level `VIEW_SCHEMA`, `QUERY`, `EXPORT`, and `MANAGE` permissions.
 - **FR-IAM-004:** Apply the same authorization to REST, web, and MCP paths.
 - **FR-IAM-005:** Record the actor and authorization context in audit metadata.
+- **FR-IAM-006:** Discover a caller's active workspace memberships from server-side state and require explicit workspace selection for every workspace-scoped request; never accept a workspace identifier from a token, path, query, cookie, or body as authority.
+- **FR-IAM-007:** Treat `X-RivoQuery-Workspace-Id` as a request-local selector only after exact validation and server-side membership lookup; never fall back to another membership when the selector is missing or unauthorized.
 
 ### Results, history, and feedback
 
@@ -232,7 +234,7 @@ Not included:
 Resolve before public beta:
 
 - Hosting model: self-hosted only, managed SaaS, or both.
-- Whether connection creation is restricted to administrators.
+- How the first workspace and administrator are provisioned for each deployment.
 - Whether result export is enabled in MVP.
 - Supported identity provider for the reference deployment.
 - Default LLM adapter for local development and production examples.
