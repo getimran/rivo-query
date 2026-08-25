@@ -3,6 +3,7 @@ package com.knowimran.rivoquery.platform;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knowimran.rivoquery.RivoQueryApplication;
+import com.knowimran.rivoquery.platform.persistence.ControlDatabaseRoleFixture;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;
@@ -25,6 +26,13 @@ class PlatformMigrationIT {
     private static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(POSTGRES_IMAGE);
 
+    // A restricted role distinct from the container's bootstrap superuser
+    // (which Flyway migrates as); see ControlDatabaseRoleFixture and V2's
+    // own comments on why this split must hold and why V2 no longer creates
+    // this role itself.
+    private static final String RUNTIME_APP_USERNAME = "rivoquery_app_it";
+    private static final String RUNTIME_APP_PASSWORD = "rivoquery-app-it-synthetic-pw";
+
     @Test
     void migratesFromEmptyAndStartsAgainWithoutChangingTheSchema() {
         try (ConfigurableApplicationContext firstStart = startApplication()) {
@@ -34,23 +42,29 @@ class PlatformMigrationIT {
                             "SELECT schema_version FROM platform_heartbeat WHERE singleton_id = 1",
                             String.class))
                     .isEqualTo("1");
-            assertThat(appliedMigrationCount(jdbc)).isEqualTo(1);
+            assertThat(appliedMigrationCount(jdbc)).isEqualTo(2);
         }
 
         try (ConfigurableApplicationContext repeatStart = startApplication()) {
             JdbcTemplate jdbc = repeatStart.getBean(JdbcTemplate.class);
 
-            assertThat(appliedMigrationCount(jdbc)).isEqualTo(1);
+            assertThat(appliedMigrationCount(jdbc)).isEqualTo(2);
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM platform_heartbeat", Integer.class))
                     .isEqualTo(1);
         }
     }
 
     private ConfigurableApplicationContext startApplication() {
+        // Idempotent: creates the role on the first call only, matching the
+        // out-of-band provisioning V2 now requires (see the migration's own
+        // comments); safe to call again across the repeat-start assertion.
+        ControlDatabaseRoleFixture.createRuntimeRole(POSTGRES, RUNTIME_APP_USERNAME, RUNTIME_APP_PASSWORD);
         Map<String, Object> properties = Map.of(
                 "spring.datasource.url", POSTGRES.getJdbcUrl(),
-                "spring.datasource.username", POSTGRES.getUsername(),
-                "spring.datasource.password", POSTGRES.getPassword());
+                "spring.datasource.username", RUNTIME_APP_USERNAME,
+                "spring.datasource.password", RUNTIME_APP_PASSWORD,
+                "spring.flyway.user", POSTGRES.getUsername(),
+                "spring.flyway.password", POSTGRES.getPassword());
 
         return new SpringApplicationBuilder(RivoQueryApplication.class)
                 .web(WebApplicationType.NONE)

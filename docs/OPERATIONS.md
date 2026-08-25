@@ -93,3 +93,66 @@ docker-compose --env-file .env -f deploy/local/compose.yaml down
 - Account for multiplied target pool limits across replicas.
 - Use external secrets and network policy.
 - Roll back application independently; never roll back destructive migrations without an explicit tested plan.
+
+## Control database: migration-owner and runtime-role separation
+
+The control database's append-only audit table
+(`connection_lifecycle_audit_events`, see `V2__create_identity_and_connection_control_plane.sql`)
+is only append-only for a runtime role that is never that table's *owner* -
+an owning role always retains `ALTER TABLE` rights (including
+`ALTER TABLE ... DISABLE TRIGGER`) that no `REVOKE` can strip. Every table
+Flyway creates is owned by whichever role Flyway itself connects as. This
+requires two distinct Postgres roles in every environment, not just local
+development:
+
+- **Migration owner** (`spring.flyway.user`/`password`): runs Flyway and
+  therefore owns every table it creates. Never used by the running
+  application.
+- **Runtime application role** (`spring.datasource.username`/`password`):
+  what the running application's own connection pool authenticates as.
+  Granted only the specific table-level privileges `V2` lists (and denied
+  `UPDATE`/`DELETE`/`TRUNCATE` on the audit table); never a table owner.
+
+`com.knowimran.rivoquery.platform.MigrationOwnerSeparationValidator` refuses
+to start the application if `spring.flyway.user` is unset, blank, or equal
+to `spring.datasource.username`, so this split can never silently degrade
+to "same role" through a missing environment variable. That check is
+configuration-shaped, not privilege-shaped: it cannot detect every way two
+differently-named roles could still end up with equivalent ownership
+rights granted independently of this migration.
+
+**The runtime role's password must never appear as a Flyway-substituted SQL
+literal.** `V2` deliberately never creates or sets the password for the
+runtime role - only grants privileges to it - and fails the migration
+loudly if that role does not already exist by the time it runs. Flyway
+performs plain-text placeholder substitution before sending SQL to
+Postgres; embedding a password there would put the plaintext value into SQL
+text Postgres receives and may log (`log_statement=all`, pgaudit,
+`pg_stat_statements`), and a password containing a single quote could break
+out of the intended string literal and execute arbitrary SQL as the
+migration-owner role.
+
+**Staging and production must therefore provision the runtime role
+out-of-band, before the application's migration ever runs**, consistent
+with `deploy/AGENTS.md`'s "use external secrets and restrictive workload
+identities" and "never embed credentials in manifests/examples":
+
+- Provision the role and its password via the same external
+  secrets/IaC pipeline that manages the control database itself (for
+  example, a Terraform/Ansible/cloud-managed-Postgres role resource, or a
+  one-time release-job step that reads the password from the secret
+  store and issues `CREATE ROLE ... LOGIN PASSWORD ...` directly against
+  Postgres) - never by having the application or its own Flyway
+  connection create it.
+- Rotate the runtime role's password through that same external path
+  (`ALTER ROLE ... PASSWORD ...`), then update the secret the application
+  reads for `spring.datasource.password`; do not route rotation through a
+  Flyway migration.
+- Run this provisioning step strictly before the migration release step
+  above, and treat "role does not exist" as an expected, actionable
+  migration failure (`V2` raises a clear exception) rather than a
+  surprise.
+
+`deploy/local/postgres-initdb/01-create-runtime-role.sh` is the local-only
+equivalent, using PostgreSQL's own `docker-entrypoint-initdb.d` mechanism
+instead of external IaC; see `deploy/local/README.md`.

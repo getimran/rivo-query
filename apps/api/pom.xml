@@ -44,6 +44,13 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <!-- Raw DNS message construction/parsing (TTL, CNAME chain, truncation, rcode) for
+                 bounded destination resolution; java.net.InetAddress exposes none of this. -->
+            <groupId>dnsjava</groupId>
+            <artifactId>dnsjava</artifactId>
+            <version>${dnsjava.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

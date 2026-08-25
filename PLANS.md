@@ -28,15 +28,18 @@ authoritative dependency, ownership, parallel-wave, evidence, and integration
 register for these phases. Keep the phase summaries and outcomes here synchronized
 at serialized integration checkpoints; do not have parallel agents edit this file.
 
-Repository gate update (2026-08-20): PR #3 is merged and
-the design/planning checkpoint PR #4 is merged. Phase 1 is active on
-`feat/phase-1-platform-bootstrap`; its implementation and local acceptance
-checks are complete within the bootstrap prompt. Draft CP-1 is PR #5. Its first
-hosted CI run (`32363020594`) did not start any job because GitHub reported an
-account payment/spending-limit restriction. The product owner subsequently
-deferred GitHub Actions until the complete product is ready for deployment and
-accepted full local suites, independent review, and QA as the development PR
-gate. CP-1 must merge before Phase 2 begins.
+Repository gate update (2026-08-20): CP-1 PR #5 passed the complete local gate
+and merged to `main` as `938d67b`. Local `main` was fast-forwarded to that exact
+commit, no pull request remains open, and Phase 2 is active on
+`feat/phase-2-connection-control-plane`. Product, destination-enforcement, and
+secret-store decisions are the only active Phase 2 work until their review gate
+passes. GitHub Actions remains deferred to final deployment readiness.
+
+Phase 2 entry-gate update (2026-08-20): the product owner explicitly approved
+administrator-only connection administration, administrators' effective
+`MANAGE`, no member `MANAGE` in MVP, server-derived workspace discovery, and an
+exact `X-RivoQuery-Workspace-Id` on every scoped request. The technical design
+gate is independently approved, so P2-040 contract work is active.
 
 ## Phase 1 — Repository and backend bootstrap
 
@@ -164,6 +167,98 @@ Record unexpected constraints, failed assumptions, library incompatibilities, da
   lifecycle-script approvals were not fail-closed. The fixes added a contracted
   406, an application input port plus ArchUnit guard, and strict exact-version
   lifecycle-script enforcement with regressions. Both re-reviews are SAFE.
+- 2026-08-20: Phase 2 entry review initially rejected unapproved product-policy
+  claims plus incomplete audit, secret-grant, DNS, pool, and driver/TLS task
+  traceability. The technical fixes now pass independent re-review. P2-040 is
+  blocked solely until the product owner explicitly approves the proposed
+  administrator-only and workspace-selection semantics in
+  `docs/product-decisions/phase-2.md`.
+- 2026-08-20: Phase 2 contract review initially found stale health-only tests,
+  administrator links required in member summaries, unenforced cross-field
+  schema constraints, unbounded permission listing, and unintended health cache
+  headers. The final contract makes links permission-filtered, paginates grants,
+  marks mandatory runtime validators, preserves Phase 1 health exactly, and has
+  eight operation-wide contract tests. Independent re-review is APPROVED.
+- 2026-08-23: On this machine, Testcontainers' default Docker discovery cannot
+  find Colima's socket (`~/.colima/default/docker.sock` is not
+  `/var/run/docker.sock`), and once `DOCKER_HOST` points at it, Testcontainers'
+  Ryuk reaper still fails to start because Colima's VZ/virtiofs backend cannot
+  bind-mount the socket path into a container. `./mvnw -f apps/api/pom.xml
+  verify` therefore needs `DOCKER_HOST=unix:///Users/<user>/.colima/default/docker.sock`
+  and `TESTCONTAINERS_RYUK_DISABLED=true` exported first; this is an
+  environment quirk, not a project configuration gap, and every prior
+  Testcontainers IT (PlatformMigrationIT, HealthEndpointIT) needs the same two
+  variables, not just the P2-060 tests added in this pass.
+- 2026-08-23: P2-060's `connections` table has a composite FK to
+  `connection_secret_references` (for the current secret pointer) and that
+  table has the reverse composite FK back to `connections`. Combined with a
+  CHECK constraint mirroring `DatabaseConnection`'s per-state secret-presence
+  invariants, this circular relationship means `ConnectionRepository.insert()`
+  can only ever accept a freshly reserved connection (`PENDING_SECRET`, no
+  secret) — any other state would require a `connection_secret_references` row
+  that cannot exist before the `connections` row does. Every later transition,
+  including attaching the first secret, goes through `compareAndSet`. Also:
+  Postgres `array_length()` returns `NULL` (not `0`) for an empty array, which
+  a `CHECK` treats as satisfied — the non-empty-permissions constraint on
+  `connection_permission_grants` must use `cardinality()` instead.
+- 2026-08-24: Independent backend review of the uncommitted P2-050/P2-060 diff
+  found it not safe to push: the audit table's append-only guarantee was not
+  airtight because Flyway and the running application shared one Postgres
+  role, so that role — as table owner — could `ALTER TABLE ... DISABLE
+  TRIGGER` and delete around the trigger regardless of grants; the audit
+  table's FK to `connections` made pre-action/DENIED audit events for a
+  nonexistent or cross-tenant connection unrecordable, contradicting
+  ADR-0011; a secret-reference insert conflict was silently discarded via
+  `ON CONFLICT ... DO NOTHING`; a missing connection row plus an attached
+  secret let a raw FK-violation `DataAccessException` escape
+  `compareAndSet` instead of a clean `false`; `DatabaseConnection.transition`
+  could throw `IllegalArgumentException` (a 500) for transitions its own
+  state machine advertised as legal; `JdbcCurrentMembershipRepository`
+  omitted `status = 'ACTIVE'` from its SQL; and none of the three
+  Testcontainers ITs exercised the real `@Transactional` proxy, since each
+  constructed its adapters with `new` instead of pulling them from the
+  Spring context. All findings were fixed in place in the still-unshipped
+  V2 migration and the P2-050/P2-060 code (see the P2-060 evidence row);
+  fixing the audit-trigger bypass required splitting the Flyway
+  migration-owner role from the application's runtime role
+  (`spring.flyway.user`/`password` vs `spring.datasource.username/password`),
+  which was a legitimate, reviewer-authorized scope addition, not a
+  pre-planned task.
+- 2026-08-24: A second independent review of the same still-unshipped V2
+  migration/runtime-role split found it incomplete on two fronts. First, the
+  split was opt-in and silently void by default: `application.yaml` never
+  set `spring.flyway.user`/`password`, so an operator who only configured
+  `spring.datasource.*` (the reviewer's reproduced default) got Flyway
+  silently falling back to that same role, reintroducing the exact
+  audit-table bypass the prior round fixed, with nothing failing loudly.
+  Second, the runtime role's password was embedded as a Flyway-substituted
+  SQL literal (`EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', ...)`
+  inside a `DO` block), which put the plaintext password into SQL text
+  Postgres receives/logs and let a password containing `'` execute
+  arbitrary SQL as the migration owner. Fixed: (1)
+  `MigrationOwnerSeparationValidator` (a `FlywayConfigurationCustomizer`)
+  now fails application startup before any migration runs whenever
+  `spring.flyway.user` is unset, blank, or equal to
+  `spring.datasource.username`; `.env.example`/`deploy/local/compose.yaml`
+  now wire real non-empty local-dev defaults for the split, and every
+  full-context IT (`ConnectionRepositoryPersistenceIT`,
+  `IdentityAndConnectionPersistenceIT`, `PlatformMigrationIT`,
+  `HealthEndpointIT`, in addition to `ControlPlaneSchemaConstraintsIT`) now
+  configures it correctly. (2) `V2` no longer creates the runtime role or
+  sets its password; it only grants privileges to a role that must already
+  exist, failing the migration loudly otherwise. Role creation moved
+  out-of-band: `deploy/local/postgres-initdb/01-create-runtime-role.sh`
+  (Postgres's own `docker-entrypoint-initdb.d` mechanism) for local dev, and
+  a new `docs/OPERATIONS.md` section requiring external secrets/IaC for
+  staging/production. Actually exercising the split for the first time
+  (rather than it being masked by a shared role) surfaced one genuine
+  pre-existing gap fixed in the same pass: `platform_heartbeat` (V1,
+  already shipped) had never been granted to the runtime role, so the
+  readiness probe would have failed under a correctly-configured split; `V2`
+  now grants it `SELECT`. See the P2-060 evidence row for full detail and
+  the `MigrationOwnerSeparationValidator` Javadoc for the residual,
+  configuration-shaped (not privilege-shaped) limit of the fail-closed
+  check.
 
 ## Decision log
 
@@ -189,6 +284,30 @@ Record implementation-level decisions that do not yet justify an ADR.
   exception. They expose bounded status only; liveness has no dependency call,
   readiness uses an application input port and the control heartbeat, and all
   other product REST operations remain subject to the planned JWT baseline.
+- 2026-08-20: ADR-0013 selects complete all-answer destination validation,
+  short-lived vetted-address capabilities, driver socket hooks preserving the
+  original TLS hostname, pool revalidation/drain, operator-only private rules,
+  and independent egress. Secret access uses sole grant issuer
+  `SecretCapabilityAuthority`, binding-aware destructible leases, external local
+  ciphertext storage, bounded failed-validation retention, and durable
+  stage/switch/revoke compensation.
+- 2026-08-20: The product owner approved Phase 2's administrator-only connection
+  model and mandatory explicit workspace selector. The accepted requirements are
+  recorded as FR-CON-007 and FR-IAM-006/007; bootstrap provisioning, reference
+  IdP, delegated administration, and cross-workspace operators remain deferred.
+- 2026-08-24: Reconciled `ConnectionState.canTransitionTo` with
+  `DatabaseConnection`'s constructor invariants without weakening either: the
+  per-state secret-presence invariants (`PENDING_VALIDATION`/`ACTIVE`/
+  `DISABLED` always require a current secret) are unchanged, and
+  `ConnectionState`'s abstract reachability graph is unchanged except for
+  removing `PENDING_SECRET -> PENDING_VALIDATION`, which was unconditionally
+  impossible (`PENDING_SECRET` can never hold a secret). For the remaining
+  graph-legal-but-instance-conditional edges (e.g. `FAILED_VALIDATION ->
+  DISABLED`/`PENDING_VALIDATION` once `detachFailedSecret` has run),
+  `DatabaseConnection.transition` now fails closed with
+  `InvalidConnectionTransitionException` before construction, mirroring the
+  existing `FAILED_VALIDATION`-target guard, instead of letting the
+  constructor's `IllegalArgumentException` escape as an unhandled 500.
 
 ## Outcomes and retrospective
 

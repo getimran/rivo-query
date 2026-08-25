@@ -32,7 +32,16 @@ update the tag and digest together through dependency review.
 
 PostgreSQL applies the database name and credentials only while initializing an
 empty volume. Editing `.env` later does not rotate an existing local role; use a
-database role-rotation procedure or deliberately reset the local volume.
+database role-rotation procedure or deliberately reset the local volume. The
+same applies to the restricted runtime application role
+(`SPRING_DATASOURCE_USERNAME`/`PASSWORD`), which
+`postgres-initdb/01-create-runtime-role.sh` creates once, on first
+initialization of an empty volume, via PostgreSQL's own
+`docker-entrypoint-initdb.d` mechanism - never through Flyway's or the
+application's own connection. Migration `V2` only grants that role
+privileges; it fails loudly if the role does not already exist, so this
+script (or the staging/production equivalent in `docs/OPERATIONS.md`) must
+run before the application starts.
 
 ## Stop or reset
 
@@ -58,6 +67,8 @@ volume. It must never be used against a shared or production environment.
 docker-compose --env-file .env.example -f deploy/local/compose.yaml config --quiet
 docker-compose --env-file .env.example -f deploy/local/compose.yaml up -d --wait
 docker-compose --env-file .env.example -f deploy/local/compose.yaml exec -T control-postgres \
-  pg_isready -U rivoquery_local -d rivoquery_control
+  pg_isready -U rivoquery_migrator -d rivoquery_control
+docker-compose --env-file .env.example -f deploy/local/compose.yaml exec -T control-postgres \
+  pg_isready -U rivoquery_app -d rivoquery_control
 docker-compose --env-file .env.example -f deploy/local/compose.yaml down --volumes
 ```

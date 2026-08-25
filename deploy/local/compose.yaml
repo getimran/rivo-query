@@ -5,13 +5,25 @@ services:
     image: postgres:17.6-alpine3.22@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     environment:
       POSTGRES_DB: "${RIVOQUERY_CONTROL_DB_NAME:?RIVOQUERY_CONTROL_DB_NAME must be set}"
-      POSTGRES_USER: "${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME must be set}"
-      POSTGRES_PASSWORD: "${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD must be set}"
+      # This is the migration-owner/bootstrap superuser, not the runtime
+      # application role. postgres-initdb/01-create-runtime-role.sh
+      # provisions the restricted SPRING_DATASOURCE_USERNAME role that the
+      # application itself connects with; V2 only grants that pre-existing
+      # role privileges, it never creates it. See .env.example.
+      POSTGRES_USER: "${SPRING_FLYWAY_USER:?SPRING_FLYWAY_USER must be set}"
+      POSTGRES_PASSWORD: "${SPRING_FLYWAY_PASSWORD:?SPRING_FLYWAY_PASSWORD must be set}"
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+      # Consumed only by postgres-initdb/01-create-runtime-role.sh, which
+      # Postgres runs once against a local connection on first startup of an
+      # empty volume; never sent through Flyway's or the application's own
+      # connection.
+      RIVOQUERY_RUNTIME_DB_USER: "${SPRING_DATASOURCE_USERNAME:?SPRING_DATASOURCE_USERNAME must be set}"
+      RIVOQUERY_RUNTIME_DB_PASSWORD: "${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD must be set}"
     ports:
       - "127.0.0.1:${RIVOQUERY_CONTROL_DB_PORT:-5432}:5432"
     volumes:
       - control-postgres-data:/var/lib/postgresql/data
+      - ./postgres-initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s

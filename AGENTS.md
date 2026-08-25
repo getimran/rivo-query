@@ -69,7 +69,7 @@ Integration tests require a Docker-compatible runtime and Testcontainers. If a r
 
 ## Planning and review
 
-- Delegate substantial work to the project-scoped custom agents in `.codex/agents/`:
+- Delegate substantial work to the project-scoped custom agents (`.codex/agents/` for Codex, `.claude/agents/` for Claude Code):
   - Use `prd_researcher` when scope may change product requirements.
   - Use `solution_architect`, `api_architect`, and `solution_design_reviewer` before implementation when architecture or contracts materially change.
   - Use `task_planner` to turn approved designs into ordered tasks and acceptance checks.

@@ -4,6 +4,20 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # Setting spring.flyway.user/password (SPRING_FLYWAY_USER/PASSWORD) is
+    # what makes Flyway build its own dedicated migration-owner connection
+    # instead of silently reusing spring.datasource.*; see .env.example.
+    # com.knowimran.rivoquery.platform.MigrationOwnerSeparationValidator
+    # refuses to start the application if spring.flyway.user is unset or
+    # equal to spring.datasource.username, so that fallback can never
+    # silently happen. The placeholder below lets
+    # V2__create_identity_and_connection_control_plane.sql grant privileges
+    # to the restricted runtime role that exactly matches the username the
+    # application's own connection pool authenticates with; that role must
+    # already exist (see deploy/local/postgres-initdb/ and
+    # docs/OPERATIONS.md) - this migration never creates it.
+    placeholders:
+      runtimeAppUsername: ${spring.datasource.username}
   datasource:
     hikari:
       connection-timeout: 2000

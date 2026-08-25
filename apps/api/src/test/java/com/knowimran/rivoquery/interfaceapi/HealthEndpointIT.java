@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knowimran.rivoquery.platform.persistence.ControlDatabaseRoleFixture;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
@@ -50,11 +51,24 @@ class HealthEndpointIT {
                     .withUsername("rivoquery")
                     .withPassword(SECRET_MARKER);
 
+    // A restricted role distinct from the container's bootstrap superuser
+    // (which Flyway migrates as); see ControlDatabaseRoleFixture and V2's
+    // own comments on why this split must hold and why V2 no longer creates
+    // this role itself.
+    private static final String RUNTIME_APP_USERNAME = "rivoquery_app_it";
+    private static final String RUNTIME_APP_PASSWORD = "rivoquery-app-it-synthetic-pw";
+
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
+        // The @Testcontainers extension starts static @Container fields
+        // before @DynamicPropertySource methods run, so POSTGRES is already
+        // reachable here.
+        ControlDatabaseRoleFixture.createRuntimeRole(POSTGRES, RUNTIME_APP_USERNAME, RUNTIME_APP_PASSWORD);
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("spring.datasource.username", () -> RUNTIME_APP_USERNAME);
+        registry.add("spring.datasource.password", () -> RUNTIME_APP_PASSWORD);
+        registry.add("spring.flyway.user", POSTGRES::getUsername);
+        registry.add("spring.flyway.password", POSTGRES::getPassword);
     }
 
     @Autowired

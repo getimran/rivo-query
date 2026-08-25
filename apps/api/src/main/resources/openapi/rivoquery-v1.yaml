@@ -1,15 +1,22 @@
 openapi: 3.1.0
 info:
   title: RivoQuery API
-  version: 1.0.0
+  version: 1.1.0
   description: Security-first RivoQuery REST API.
 servers:
   - url: /
+security:
+  - BearerAuth: []
+tags:
+  - name: Health
+  - name: Workspaces
+  - name: Connections
+  - name: Connection permissions
+  - name: Operations
 paths:
   /api/v1/health/live:
     get:
-      tags:
-        - Health
+      tags: [Health]
       operationId: getLiveness
       summary: Check process liveness
       description: Returns immediately without calling a downstream dependency.
@@ -26,14 +33,326 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+        '406':
+          $ref: '#/components/responses/HealthNotAcceptable'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: '#/components/responses/HealthInternalError'
+  /api/v1/connections/{connectionId}/enable:
+    post:
+      tags: [Connections]
+      operationId: enableConnection
+      summary: Enable a validated connection
+      description: Enabling never bypasses validation or restores expired credentials.
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/ConnectionChanged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '406':
           $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections/{connectionId}/disable:
+    post:
+      tags: [Connections]
+      operationId: disableConnection
+      summary: Disable a connection
+      description: Immediately stops new grants and pool borrows before draining pools.
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/ConnectionChanged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections/{connectionId}/test:
+    post:
+      tags: [Connections]
+      operationId: testConnection
+      summary: Start a bounded non-pooled connection test
+      description: >-
+        Uses only the currently bound secret version and a freshly validated
+        destination. Raw resolver, secret-provider, and driver details are never returned.
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          $ref: '#/components/responses/OperationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/connections/{connectionId}/rotate-secret:
+    post:
+      tags: [Connections]
+      operationId: rotateConnectionSecret
+      summary: Stage, test, and switch connection secret material
+      description: >-
+        All request fields are write-only. The old secret remains current unless
+        the staged version passes its bounded test and optimistic switch.
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateSecretRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/OperationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/connections/{connectionId}/permissions:
+    get:
+      tags: [Connection permissions]
+      operationId: listConnectionPermissions
+      summary: List explicit member permission grants
+      description: >-
+        Administrator effective MANAGE is derived from membership and is never
+        stored or returned as a member grant.
+      parameters:
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Current member grants and permission collection version.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionCollection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections/{connectionId}/permissions/{membershipId}:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+      - $ref: '#/components/parameters/MembershipId'
+    put:
+      tags: [Connection permissions]
+      operationId: replaceConnectionPermission
+      summary: Replace an active member's explicit connection permissions
+      description: >-
+        Requires the permission collection ETag. MANAGE is not grantable and
+        unknown, inactive, administrator, or foreign memberships are indistinguishable.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplacePermissionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/PermissionCollectionChanged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Connection permissions]
+      operationId: revokeConnectionPermission
+      summary: Revoke an active member's explicit connection permissions
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          $ref: '#/components/responses/PermissionCollectionChanged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/operations/{operationId}:
+    get:
+      tags: [Operations]
+      operationId: getOperation
+      summary: Get a durable connection lifecycle operation
+      description: >-
+        The operation is workspace-scoped and actor-bound. Unknown, foreign, or
+        inaccessible IDs all return OPERATION_NOT_FOUND.
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Current durable operation state.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/health/ready:
     get:
-      tags:
-        - Health
+      tags: [Health]
       operationId: getReadiness
       summary: Check control-plane readiness
       description: Performs a bounded lookup of the platform heartbeat singleton.
@@ -50,13 +369,300 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
-        '503':
-          $ref: '#/components/responses/ControlDatabaseUnavailable'
+        '406':
+          $ref: '#/components/responses/HealthNotAcceptable'
         '500':
-          $ref: '#/components/responses/InternalError'
+          $ref: '#/components/responses/HealthInternalError'
+        '503':
+          $ref: '#/components/responses/HealthControlDatabaseUnavailable'
+  /api/v1/workspaces:
+    get:
+      tags: [Workspaces]
+      operationId: discoverWorkspaces
+      summary: Discover the caller's active workspace memberships
+      description: >-
+        This operation is unscoped and derives results from current server-side
+        memberships. Supplying X-RivoQuery-Workspace-Id is rejected with
+        WORKSPACE_SELECTOR_NOT_ALLOWED. An empty page is valid.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Active workspace memberships visible to the caller.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspacePage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '406':
           $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/workspace-memberships:
+    get:
+      tags: [Workspaces]
+      operationId: listWorkspaceMemberships
+      summary: List active memberships for permission administration
+      description: >-
+        Requires an active administrator in the selected workspace. This
+        operation is read-only and cannot provision or change memberships.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Active membership summaries in the selected workspace.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembershipPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections:
+    get:
+      tags: [Connections]
+      operationId: listConnections
+      summary: List connections visible in the selected workspace
+      description: >-
+        Administrators see every connection in the selected workspace. Members
+        see only safe summaries for connections with an effective permission.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A bounded page of authorized connection summaries.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Connections]
+      operationId: createConnection
+      summary: Create and validate a connection
+      description: >-
+        Requires an active workspace administrator with effective MANAGE.
+        Credentials and TLS material are write-only. An exact idempotent replay
+        returns the original result or current durable operation.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConnectionRequest'
+      responses:
+        '201':
+          description: Connection creation completed.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionDetail'
+        '202':
+          $ref: '#/components/responses/OperationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/connections/{connectionId}:
+    parameters:
+      - $ref: '#/components/parameters/ConnectionId'
+    get:
+      tags: [Connections]
+      operationId: getConnection
+      summary: Get an administrator connection view
+      description: Requires an active workspace administrator with effective MANAGE.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Safe connection configuration without secret material.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Connections]
+      operationId: updateConnection
+      summary: Update non-secret connection configuration
+      description: >-
+        Requires an active administrator, Idempotency-Key, and the exact current
+        connection ETag. Credential and certificate changes use rotate-secret.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConnectionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ConnectionChanged'
+        '202':
+          $ref: '#/components/responses/OperationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Connections]
+      operationId: deleteConnection
+      summary: Tombstone a connection and schedule exact cleanup
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '202':
+          $ref: '#/components/responses/OperationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth2/OIDC token validated for issuer, audience, signature, and time claims.
   parameters:
     RequestId:
       name: X-Request-Id
@@ -65,14 +671,172 @@ components:
       description: Optional caller request identifier. Invalid values are replaced.
       schema:
         $ref: '#/components/schemas/RequestId'
+    WorkspaceId:
+      name: X-RivoQuery-Workspace-Id
+      in: header
+      required: true
+      description: >-
+        Exact request-local selector. Exactly one canonical value is required;
+        values are never trimmed, split, case-folded, or trusted without a
+        current server-side membership lookup.
+      schema:
+        $ref: '#/components/schemas/WorkspaceId'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        Opaque mutation key scoped to actor, workspace, operation, and canonical
+        request fingerprint. Reuse with a different request returns 409.
+      schema:
+        $ref: '#/components/schemas/IdempotencyKey'
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Exact strong ETag from the current resource or collection.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 96
+        pattern: '^"[A-Za-z0-9._:-]+"$'
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        $ref: '#/components/schemas/Cursor'
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    ConnectionId:
+      name: connectionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ConnectionId'
+    MembershipId:
+      name: membershipId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/MembershipId'
+    OperationId:
+      name: operationId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/OperationId'
   headers:
     RequestId:
       required: true
       description: Accepted caller identifier or a server-generated replacement.
       schema:
         $ref: '#/components/schemas/RequestId'
+    PrivateNoStore:
+      required: true
+      schema:
+        type: string
+        enum: ['private, no-store']
+    ETag:
+      required: true
+      description: Strong optimistic concurrency token for this representation.
+      schema:
+        type: string
+        minLength: 3
+        maxLength: 96
+        pattern: '^"[A-Za-z0-9._:-]+"$'
+    Location:
+      required: true
+      schema:
+        type: string
+        format: uri-reference
   responses:
+    ConnectionChanged:
+      description: Connection lifecycle state changed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Cache-Control:
+          $ref: '#/components/headers/PrivateNoStore'
+        ETag:
+          $ref: '#/components/headers/ETag'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConnectionDetail'
+    PermissionCollectionChanged:
+      description: Permission collection changed.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Cache-Control:
+          $ref: '#/components/headers/PrivateNoStore'
+        ETag:
+          $ref: '#/components/headers/ETag'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PermissionCollection'
+    OperationAccepted:
+      description: Durable operation accepted or exact idempotent replay found.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Cache-Control:
+          $ref: '#/components/headers/PrivateNoStore'
+        Location:
+          $ref: '#/components/headers/Location'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Operation'
+    BadRequest:
+      $ref: '#/components/responses/ProblemResponse'
+    Unauthorized:
+      $ref: '#/components/responses/ProblemResponse'
+    Forbidden:
+      $ref: '#/components/responses/ProblemResponse'
+    NotFound:
+      $ref: '#/components/responses/ProblemResponse'
     NotAcceptable:
+      $ref: '#/components/responses/ProblemResponse'
+    Conflict:
+      $ref: '#/components/responses/ProblemResponse'
+    PreconditionFailed:
+      $ref: '#/components/responses/ProblemResponse'
+    UnsupportedMediaType:
+      $ref: '#/components/responses/ProblemResponse'
+    UnprocessableEntity:
+      $ref: '#/components/responses/ProblemResponse'
+    PreconditionRequired:
+      $ref: '#/components/responses/ProblemResponse'
+    TooManyRequests:
+      $ref: '#/components/responses/ProblemResponse'
+    ServiceUnavailable:
+      $ref: '#/components/responses/ProblemResponse'
+    ControlDatabaseUnavailable:
+      $ref: '#/components/responses/ProblemResponse'
+    InternalError:
+      $ref: '#/components/responses/ProblemResponse'
+    ProblemResponse:
+      description: RFC 9457 problem details with a stable safe RivoQuery code.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/RequestId'
+        Cache-Control:
+          $ref: '#/components/headers/PrivateNoStore'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    HealthNotAcceptable:
       description: The requested response media type is not supported.
       headers:
         X-Request-Id:
@@ -81,7 +845,7 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
-    ControlDatabaseUnavailable:
+    HealthControlDatabaseUnavailable:
       description: The control database cannot currently satisfy readiness checks.
       headers:
         X-Request-Id:
@@ -90,7 +854,7 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
-    InternalError:
+    HealthInternalError:
       description: An unexpected internal error occurred.
       headers:
         X-Request-Id:
@@ -105,46 +869,608 @@ components:
       minLength: 1
       maxLength: 64
       pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
-      examples:
-        - request-01J6MZ4H9S
-    HealthResponse:
+      examples: [request-01J6MZ4H9S]
+    WorkspaceId:
+      type: string
+      description: Immutable, canonical, opaque workspace identifier.
+      pattern: '^wsp_[0-9A-HJKMNP-TV-Z]{26}$'
+      examples: [wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX]
+    ConnectionId:
+      type: string
+      description: Immutable, canonical, opaque connection identifier.
+      pattern: '^con_[0-9A-HJKMNP-TV-Z]{26}$'
+      examples: [con_01J6MZ4H9ST5N7YQ2C8W3V0KFX]
+    MembershipId:
+      type: string
+      description: Immutable, canonical, opaque membership identifier.
+      pattern: '^mem_[0-9A-HJKMNP-TV-Z]{26}$'
+      examples: [mem_01J6MZ4H9ST5N7YQ2C8W3V0KFX]
+    OperationId:
+      type: string
+      description: Immutable, canonical, opaque durable-operation identifier.
+      pattern: '^op_[0-9A-HJKMNP-TV-Z]{26}$'
+      examples: [op_01J6MZ4H9ST5N7YQ2C8W3V0KFX]
+    IdempotencyKey:
+      type: string
+      minLength: 16
+      maxLength: 128
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$'
+      examples: [idem-01J6MZ4H9ST5N7YQ2C8W3V0KFX]
+    Cursor:
+      type: string
+      minLength: 16
+      maxLength: 256
+      pattern: '^[A-Za-z0-9_-]+$'
+    WorkspaceRole:
+      type: string
+      enum: [ADMINISTRATOR, MEMBER]
+    WorkspaceSummary:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, displayName, role]
+      properties:
+        workspaceId:
+          $ref: '#/components/schemas/WorkspaceId'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        role:
+          $ref: '#/components/schemas/WorkspaceRole'
+    WorkspacePage:
+      type: object
+      additionalProperties: false
+      required: [items, selectionRequired]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/WorkspaceSummary'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+        selectionRequired:
+          type: boolean
+          description: Always true; clients must explicitly select a workspace for scoped requests.
+    MembershipSummary:
+      type: object
+      additionalProperties: false
+      required: [membershipId, displayName, role]
+      properties:
+        membershipId:
+          $ref: '#/components/schemas/MembershipId'
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        role:
+          $ref: '#/components/schemas/WorkspaceRole'
+    MembershipPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/MembershipSummary'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+    DatabaseKind:
+      type: string
+      enum: [POSTGRESQL, MYSQL]
+    ConnectionState:
+      type: string
+      enum: [PENDING_VALIDATION, ACTIVE, FAILED_VALIDATION, DISABLED, DELETING]
+    CredentialState:
+      type: string
+      enum: [CURRENT, RETAINED_FOR_RETEST, EXPIRED, REVOCATION_PENDING]
+    TlsMode:
+      type: string
+      description: >-
+        VERIFY_FULL is the production mode. DISABLED is accepted only when an
+        explicit deployment policy permits a synthetic local destination.
+      enum: [VERIFY_FULL, DISABLED]
+    EffectivePermission:
+      type: string
+      enum: [VIEW_SCHEMA, QUERY, EXPORT, MANAGE]
+    GrantablePermission:
+      type: string
+      description: MANAGE is intentionally not grantable to members.
+      enum: [VIEW_SCHEMA, QUERY, EXPORT]
+    EndpointInput:
+      type: object
+      additionalProperties: false
+      required: [host, port, database]
+      properties:
+        host:
+          type: string
+          minLength: 1
+          maxLength: 253
+          pattern: '^[A-Za-z0-9:._-]+$'
+          description: >-
+            DNS name or strict unbracketed IP literal only. URI user information,
+            paths, queries, fragments, embedded ports, zone IDs, and alternative
+            numeric IPv4 forms are rejected by server validation.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        database:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Database name, not a path, URL, or driver property.
+    SecretInput:
+      type: object
+      writeOnly: true
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 256
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 4096
+    TlsInput:
+      type: object
+      description: >-
+        clientCertificatePem and clientPrivateKeyPem must be supplied together.
+        The Java server must enforce this cross-field rule at the interface boundary.
+      x-rivoquery-runtime-validation: [CLIENT_CERTIFICATE_KEY_PAIR]
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode:
+          $ref: '#/components/schemas/TlsMode'
+        caCertificatePem:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 65536
+        clientCertificatePem:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 65536
+        clientPrivateKeyPem:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 65536
+      dependentRequired:
+        clientCertificatePem: [clientPrivateKeyPem]
+        clientPrivateKeyPem: [clientCertificatePem]
+    ConnectorOptions:
+      type: object
+      description: >-
+        Closed safe option allowlist. Raw JDBC URLs, driver classes, socket
+        factories, authentication plugins, file paths, and arbitrary driver
+        properties are never accepted.
+      additionalProperties: false
+      properties:
+        tcpKeepAlive:
+          type: boolean
+          default: true
+    ObjectAccessPolicy:
+      type: object
+      additionalProperties: false
+      required: [allowedSchemas, allowedTables]
+      properties:
+        allowedSchemas:
+          type: array
+          minItems: 1
+          maxItems: 128
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+        allowedTables:
+          type: array
+          maxItems: 512
+          uniqueItems: true
+          description: Empty means all non-system tables inside allowed schemas.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 256
+    ConnectionLimits:
+      type: object
+      additionalProperties: false
+      required: [statementTimeoutMs, maxRows]
+      properties:
+        statementTimeoutMs:
+          type: integer
+          minimum: 100
+          maximum: 60000
+          default: 15000
+        maxRows:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 200
+    CreateConnectionRequest:
+      type: object
+      additionalProperties: false
+      required: [name, kind, endpoint, secret, tls, connectorOptions, objectPolicy, limits]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        kind:
+          $ref: '#/components/schemas/DatabaseKind'
+        endpoint:
+          $ref: '#/components/schemas/EndpointInput'
+        secret:
+          $ref: '#/components/schemas/SecretInput'
+        tls:
+          $ref: '#/components/schemas/TlsInput'
+        connectorOptions:
+          $ref: '#/components/schemas/ConnectorOptions'
+        objectPolicy:
+          $ref: '#/components/schemas/ObjectAccessPolicy'
+        limits:
+          $ref: '#/components/schemas/ConnectionLimits'
+    UpdateConnectionRequest:
+      type: object
+      description: >-
+        At least one property is required. The Java server must enforce this
+        non-empty PATCH rule at the interface boundary.
+      x-rivoquery-runtime-validation: [NON_EMPTY_PATCH]
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        endpoint:
+          $ref: '#/components/schemas/EndpointInput'
+        tlsMode:
+          $ref: '#/components/schemas/TlsMode'
+        connectorOptions:
+          $ref: '#/components/schemas/ConnectorOptions'
+        objectPolicy:
+          $ref: '#/components/schemas/ObjectAccessPolicy'
+        limits:
+          $ref: '#/components/schemas/ConnectionLimits'
+    RotateSecretRequest:
+      type: object
+      description: >-
+        clientCertificatePem and clientPrivateKeyPem must be supplied together.
+        The Java server must enforce this cross-field rule at the interface boundary.
+      x-rivoquery-runtime-validation: [CLIENT_CERTIFICATE_KEY_PAIR]
+      writeOnly: true
+      additionalProperties: false
+      required: [secret]
+      properties:
+        secret:
+          $ref: '#/components/schemas/SecretInput'
+        caCertificatePem:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 65536
+        clientCertificatePem:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 65536
+        clientPrivateKeyPem:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 1
+          maxLength: 65536
+      dependentRequired:
+        clientCertificatePem: [clientPrivateKeyPem]
+        clientPrivateKeyPem: [clientCertificatePem]
+    EndpointView:
+      type: object
+      readOnly: true
+      additionalProperties: false
+      required: [host, port, database]
+      properties:
+        host:
+          type: string
+        port:
+          type: integer
+        database:
+          type: string
+    TlsSummary:
+      type: object
+      readOnly: true
+      additionalProperties: false
+      required: [mode, customCaConfigured, clientCertificateConfigured]
+      properties:
+        mode:
+          $ref: '#/components/schemas/TlsMode'
+        customCaConfigured:
+          type: boolean
+        clientCertificateConfigured:
+          type: boolean
+    ConnectionLinks:
+      type: object
+      readOnly: true
+      description: >-
+        Permission-filtered affordances. A link is present only when the caller
+        may perform that action; admin-only links are omitted from member summaries.
+      additionalProperties: false
+      properties:
+        self:
+          type: string
+          format: uri-reference
+        test:
+          type: string
+          format: uri-reference
+        rotateSecret:
+          type: string
+          format: uri-reference
+        enable:
+          type: string
+          format: uri-reference
+        disable:
+          type: string
+          format: uri-reference
+        permissions:
+          type: string
+          format: uri-reference
+    ConnectionSummary:
       type: object
       additionalProperties: false
       required:
-        - status
+        [connectionId, name, kind, state, version, effectivePermissions, createdAt, updatedAt]
+      properties:
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/DatabaseKind'
+        state:
+          $ref: '#/components/schemas/ConnectionState'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        effectivePermissions:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/EffectivePermission'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        links:
+          $ref: '#/components/schemas/ConnectionLinks'
+    ConnectionDetail:
+      type: object
+      additionalProperties: false
+      required:
+        [connectionId, name, kind, state, version, effectivePermissions, createdAt, updatedAt, links,
+         endpoint, tls, connectorOptions, objectPolicy, limits, credentialState, secretConfigured]
+      properties:
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/DatabaseKind'
+        state:
+          $ref: '#/components/schemas/ConnectionState'
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        effectivePermissions:
+          type: array
+          maxItems: 4
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/EffectivePermission'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        links:
+          $ref: '#/components/schemas/ConnectionLinks'
+        endpoint:
+          $ref: '#/components/schemas/EndpointView'
+        tls:
+          $ref: '#/components/schemas/TlsSummary'
+        connectorOptions:
+          $ref: '#/components/schemas/ConnectorOptions'
+        objectPolicy:
+          $ref: '#/components/schemas/ObjectAccessPolicy'
+        limits:
+          $ref: '#/components/schemas/ConnectionLimits'
+        credentialState:
+          $ref: '#/components/schemas/CredentialState'
+        secretConfigured:
+          type: boolean
+        credentialRetireAt:
+          type: string
+          format: date-time
+          description: Present only for a retained failed-validation credential.
+    ConnectionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ConnectionSummary'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+    PermissionGrant:
+      type: object
+      additionalProperties: false
+      required: [membershipId, permissions]
+      properties:
+        membershipId:
+          $ref: '#/components/schemas/MembershipId'
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/GrantablePermission'
+    PermissionCollection:
+      type: object
+      additionalProperties: false
+      required: [version, items]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/PermissionGrant'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+    ReplacePermissionRequest:
+      type: object
+      additionalProperties: false
+      required: [permissions]
+      properties:
+        permissions:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/GrantablePermission'
+    OperationAction:
+      type: string
+      enum:
+        [CONNECTION_CREATE, CONNECTION_UPDATE, CONNECTION_DELETE, CONNECTION_TEST,
+         CONNECTION_ROTATE_SECRET]
+    OperationState:
+      type: string
+      enum: [PENDING, RUNNING, SUCCEEDED, FAILED, INDETERMINATE]
+    OperationFailure:
+      type: object
+      additionalProperties: false
+      required: [code, detail]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]{0,63}$'
+        detail:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Safe detail without raw provider, resolver, or driver information.
+    OperationLinks:
+      type: object
+      additionalProperties: false
+      required: [self]
+      properties:
+        self:
+          type: string
+          format: uri-reference
+        connection:
+          type: string
+          format: uri-reference
+    Operation:
+      type: object
+      additionalProperties: false
+      required: [operationId, action, state, createdAt, updatedAt, links]
+      properties:
+        operationId:
+          $ref: '#/components/schemas/OperationId'
+        action:
+          $ref: '#/components/schemas/OperationAction'
+        state:
+          $ref: '#/components/schemas/OperationState'
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        failure:
+          $ref: '#/components/schemas/OperationFailure'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        links:
+          $ref: '#/components/schemas/OperationLinks'
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
       properties:
         status:
           type: string
-          enum:
-            - UP
+          enum: [UP]
     ProblemDetails:
       type: object
-      description: RFC 9457 problem details with stable RivoQuery extensions.
-      required:
-        - type
-        - title
-        - status
-        - detail
-        - instance
-        - code
-        - requestId
+      description: >-
+        RFC 9457 problem details with stable RivoQuery extensions. Details never
+        contain credentials, certificates, tokens, connection URLs, resolved
+        addresses, policy rules, driver messages, stack traces, or existence hints.
+      required: [type, title, status, detail, instance, code, requestId]
       properties:
         type:
           type: string
           format: uri
         title:
           type: string
+          minLength: 1
+          maxLength: 128
         status:
           type: integer
           minimum: 100
           maximum: 599
         detail:
           type: string
+          minLength: 1
+          maxLength: 1024
         instance:
           type: string
           format: uri-reference
         code:
           type: string
+          description: >-
+            Stable codes include AUTHENTICATION_REQUIRED,
+            WORKSPACE_SELECTOR_INVALID, WORKSPACE_SELECTOR_NOT_ALLOWED,
+            WORKSPACE_ACCESS_DENIED, ADMINISTRATOR_REQUIRED,
+            CONNECTION_NOT_FOUND, MEMBERSHIP_NOT_FOUND, OPERATION_NOT_FOUND,
+            VALIDATION_FAILED, PRECONDITION_REQUIRED, PRECONDITION_FAILED,
+            IDEMPOTENCY_KEY_REQUIRED, IDEMPOTENCY_KEY_REUSED,
+            CONNECTION_STATE_CONFLICT, DESTINATION_NOT_ALLOWED,
+            DESTINATION_RESOLUTION_FAILED, SECRET_PROVIDER_UNAVAILABLE,
+            CONNECTION_TEST_FAILED, RATE_LIMITED, and INTERNAL_ERROR.
           pattern: '^[A-Z][A-Z0-9_]{0,63}$'
         requestId:
           $ref: '#/components/schemas/RequestId'
