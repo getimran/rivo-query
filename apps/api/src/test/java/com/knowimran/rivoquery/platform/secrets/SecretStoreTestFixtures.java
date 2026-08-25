@@ -76,6 +76,12 @@ final class SecretStoreTestFixtures {
             public boolean compareAndSet(DatabaseConnection ignored, ConnectionVersion version) {
                 return false;
             }
+
+            @Override
+            public java.util.List<DatabaseConnection> findPage(
+                    WorkspaceId workspaceId, Optional<ConnectionId> afterConnectionId, int limit) {
+                return java.util.List.of();
+            }
         };
         DurableSecretAuthorization authorization = (workspaceId, operationId) -> operation.filter(
                 op -> op.workspaceId().equals(workspaceId) && op.operationId().equals(operationId));

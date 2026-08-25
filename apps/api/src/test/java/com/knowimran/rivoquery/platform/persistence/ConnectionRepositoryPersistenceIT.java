@@ -301,6 +301,48 @@ class ConnectionRepositoryPersistenceIT {
         assertThat(found.version()).isEqualTo(new ConnectionVersion(3));
     }
 
+    /**
+     * P2-100 addition: {@link JdbcConnectionRepository#findPage} must order
+     * ascending by {@code connectionId}, exclude PENDING_SECRET/DELETED rows
+     * at the SQL level (never rely on an in-memory filter), respect the
+     * cursor, and stay tenant-scoped.
+     */
+    @Test
+    void findPageOrdersExcludesInternalStatesRespectsCursorAndStaysTenantScoped() {
+        var first = new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KF1");
+        var second = new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KF2");
+        var third = new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KF3");
+        insertActive(WORKSPACE_ONE, first);
+        insertActive(WORKSPACE_ONE, second);
+        insertActive(WORKSPACE_ONE, third);
+        // A still-reserving (PENDING_SECRET) connection must never appear.
+        REPOSITORY.insert(DatabaseConnection.reserve(
+                WORKSPACE_ONE, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KF4"), DatabaseKind.POSTGRESQL));
+        // A connection in a foreign workspace must never appear.
+        insertActive(WORKSPACE_TWO, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KF5"));
+
+        var firstPage = REPOSITORY.findPage(WORKSPACE_ONE, java.util.Optional.empty(), 2);
+        assertThat(firstPage).extracting(DatabaseConnection::id).containsExactly(first, second);
+
+        var secondPage = REPOSITORY.findPage(WORKSPACE_ONE, java.util.Optional.of(second), 2);
+        assertThat(secondPage).extracting(DatabaseConnection::id).containsExactly(third);
+
+        assertThat(REPOSITORY.findPage(WORKSPACE_TWO, java.util.Optional.empty(), 50))
+                .extracting(DatabaseConnection::id)
+                .containsExactly(new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KF5"));
+    }
+
+    private static void insertActive(WorkspaceId workspaceId, ConnectionId connectionId) {
+        var reserved = DatabaseConnection.reserve(workspaceId, connectionId, DatabaseKind.POSTGRESQL);
+        REPOSITORY.insert(reserved);
+        var versionReserved = reserved.reserveNextSecretVersion(new ConnectionVersion(1));
+        REPOSITORY.compareAndSet(versionReserved, new ConnectionVersion(1));
+        var active = versionReserved
+                .attachCurrentSecret(new ConnectionVersion(2), secret(workspaceId, connectionId, 1))
+                .transition(new ConnectionVersion(3), ConnectionState.ACTIVE);
+        REPOSITORY.compareAndSet(active, new ConnectionVersion(2));
+    }
+
     private static BoundSecretReference secret(WorkspaceId workspaceId, ConnectionId connectionId, long version) {
         var binding = new SecretBinding(workspaceId, connectionId, SecretPurpose.TARGET_DATABASE_CONNECTION, version);
         var reference = new SecretReference(
