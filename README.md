@@ -98,6 +98,10 @@ Open the repository folder in VS Code, open the Codex sidebar, and start with th
 
 Codex automatically reads repository `AGENTS.md` instructions, and more-specific instructions can be placed closer to the code they govern. The workspace uses that layering model deliberately. See the official guidance for [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md), the [Codex IDE extension](https://learn.chatgpt.com/docs/codex/ide), and [Codex best practices](https://learn.chatgpt.com/guides/best-practices).
 
+## Working with Claude Code
+
+Claude Code reads the same `AGENTS.md` layering through `CLAUDE.md` (`@AGENTS.md` imports at each level), plus project subagents under `.claude/agents/` and phase slash commands under `.claude/commands/` (`/orient`, `/phase1` … `/phase7-8`). See `docs/CLAUDE_WORKFLOW.md` for the full workflow, equivalent to the Codex flow above.
+
 ## Current status
 
 - Product scope: defined

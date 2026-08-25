@@ -28,6 +28,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <archunit.version>1.5.0</archunit.version>
         <openapi-generator.version>7.24.0</openapi-generator.version>
+        <dnsjava.version>3.6.5</dnsjava.version>
     </properties>
 
     <build>

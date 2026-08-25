@@ -6,13 +6,19 @@ import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.sli
 
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.knowimran.rivoquery.connection.application.secret.SecretCapabilityAuthority;
+import com.knowimran.rivoquery.connection.application.secret.SecretStore;
 
 @AnalyzeClasses(
         packages = "com.knowimran.rivoquery",
         importOptions = ImportOption.DoNotIncludeTests.class)
-class ArchitectureTest {
+public class ArchitectureTest {
 
     private static final String ROOT_PACKAGE = "com.knowimran.rivoquery..";
     private static final String[] CORE_PACKAGES = {
@@ -67,4 +73,74 @@ class ArchitectureTest {
     static final ArchRule rest_adapter_depends_on_application_ports_not_platform_implementations =
             noClasses().that().resideInAPackage("..interfaceapi..")
                     .should().dependOnClassesThat().resideInAPackage("..platform..");
+
+    @ArchTest
+    static final ArchRule only_secret_capability_authority_calls_secret_store =
+            onlyAuthorityCallsSecretStoreRule();
+
+    @ArchTest
+    public static final ArchRule untrusted_boundaries_do_not_depend_on_secret_grants =
+            noClasses().that().resideInAnyPackage(
+                            "..interfaceapi..",
+                            "..interfacemcp..",
+                            "..platform.persistence..",
+                            "..connection.connector..",
+                            "..connection.pool..",
+                            "..worker..",
+                            "..workers..")
+                    .should().dependOnClassesThat().haveNameMatching(
+                            ".*SecretCapabilityAuthority\\$Secret(Access|Mutation|Revocation)Grant");
+
+    @ArchTest
+    public static final ArchRule secret_leases_do_not_escape_to_untrusted_boundaries =
+            noClasses().that().resideInAnyPackage(
+                            "..interfaceapi..",
+                            "..interfacemcp..",
+                            "..platform.persistence..",
+                            "..connection.connector..",
+                            "..connection.pool..",
+                            "..worker..",
+                            "..workers..")
+                    .should().dependOnClassesThat().haveSimpleName("SecretLease");
+
+    @ArchTest
+    static final ArchRule transport_cannot_mint_actor_contexts =
+            noClasses().that().resideInAnyPackage("..interfaceapi..", "..interfacemcp..")
+                    .should().dependOnClassesThat().haveNameMatching(".*ActorContext\\$Authority");
+
+    /**
+     * Public so {@code SecretStoreEntryPointBoundaryTest} can run the exact
+     * production rule instance against deliberately-violating fixtures,
+     * rather than maintaining a second, driftable copy of this logic.
+     */
+    public static ArchRule onlyAuthorityCallsSecretStoreRule() {
+        return classes().that().doNotHaveFullyQualifiedName(SecretCapabilityAuthority.class.getName())
+                .should(notCallSecretStoreMethods());
+    }
+
+    /**
+     * Flags both direct calls ({@code JavaMethodCall}, e.g.
+     * {@code store.resolve(...)}) and method references
+     * ({@code JavaMethodReference}, e.g. {@code store::resolve}, which the
+     * compiler lowers to {@code invokedynamic} and ArchUnit models as a
+     * distinct, disjoint kind of access) that target a {@link SecretStore}
+     * method. A rule that inspected only {@code getMethodCallsFromSelf()}
+     * would silently let a method-reference-based call site evade this
+     * guard entirely.
+     */
+    private static ArchCondition<JavaClass> notCallSecretStoreMethods() {
+        return new ArchCondition<>("not call or reference SecretStore methods") {
+            @Override
+            public void check(JavaClass item, ConditionEvents events) {
+                item.getMethodCallsFromSelf().stream()
+                        .filter(call -> call.getTargetOwner().isAssignableTo(SecretStore.class))
+                        .forEach(call -> events.add(SimpleConditionEvent.violated(
+                                item, item.getName() + " calls " + call.getTarget().getFullName())));
+                item.getMethodReferencesFromSelf().stream()
+                        .filter(reference -> reference.getTargetOwner().isAssignableTo(SecretStore.class))
+                        .forEach(reference -> events.add(SimpleConditionEvent.violated(
+                                item, item.getName() + " references " + reference.getTarget().getFullName())));
+            }
+        };
+    }
 }
