@@ -41,6 +41,20 @@ administrator-only connection administration, administrators' effective
 exact `X-RivoQuery-Workspace-Id` on every scoped request. The technical design
 gate is independently approved, so P2-040 contract work is active.
 
+Repository gate update (2026-08-25): P2-050 through P2-090 (identity/connection
+domain, control-plane schema and persistence adapters, secret AES-GCM adapter,
+destination/SSRF enforcement, connector SPI) passed independent
+`backend-code-reviewer` review across 2-3 rounds each, with the full local
+suite green (364 unit + 37 PostgreSQL Testcontainers integration tests), and
+merged to `main` as `12b16d2` (PR #6, `feat/phase-2-connection-control-plane`).
+Local `main` was fast-forwarded to that exact commit and the branch deleted.
+No pull request remains open. This was a partial-phase checkpoint, not the
+phase-level `CP-2` closeout in the task register's P2-200 row: P2-100 (CRUD/
+rotation saga), P2-110/120 (live PostgreSQL/MySQL connection tests), P2-130
+(REST endpoints), P2-140 (web onboarding UI), P2-150 (QA matrix), P2-180
+(devops docs), and P2-190/200 remain before Phase 2 is complete. GitHub
+Actions remains deferred to final deployment readiness.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.
