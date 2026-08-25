@@ -159,6 +159,57 @@ public class JdbcConnectionRepository implements ConnectionRepository {
         throw new StaleConnectionVersionException();
     }
 
+    // Added for P2-100's list use case. PENDING_SECRET/DELETED are excluded
+    // in SQL (not just filtered afterward) so a page never leaks an
+    // internal-only connection, and the LIMIT is applied server-side so a
+    // caller-supplied limit can never force an unbounded scan.
+    //
+    // This literal `state NOT IN (...)` list must stay exactly the
+    // complement of ConnectionState.isPublicState() - SQL cannot reference
+    // that Java method directly, so ConnectionAggregateTest
+    // .publicStateExclusionListMatchesTheSqlLevelExclusionInFindPage is the
+    // regression guard that keeps the two in sync if a future state is
+    // added.
+    //
+    // The keyset-pagination cursor (`c.connection_id > ?`) and `ORDER BY
+    // c.connection_id ASC` must sort using the same collation/comparison
+    // rule, or a row could be skipped or repeated across pages. connection_id
+    // is a fixed-format, fixed-length canonical ULID-suffixed opaque id
+    // (see ConnectionId), so plain byte/codepoint ordering is stable and
+    // collation-independent here - this would need revisiting if the id
+    // format ever became variable-length or case-insensitive.
+    private static final String FIND_PAGE_QUERY = """
+            SELECT c.workspace_id, c.connection_id, c.kind, c.state, c.version,
+                   c.latest_secret_version, c.secret_retire_at,
+                   r.version AS secret_version, r.purpose, r.provider_namespace,
+                   r.opaque_id, r.binding_fingerprint
+            FROM connections c
+            LEFT JOIN connection_secret_references r
+                   ON r.workspace_id = c.workspace_id
+                  AND r.connection_id = c.connection_id
+                  AND r.version = c.current_secret_version
+            WHERE c.workspace_id = ?
+              AND c.state NOT IN ('PENDING_SECRET', 'DELETED')
+              AND c.connection_id > ?
+            ORDER BY c.connection_id ASC
+            LIMIT ?
+            """;
+
+    @Override
+    public List<DatabaseConnection> findPage(
+            WorkspaceId workspaceId, Optional<ConnectionId> afterConnectionId, int limit) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(afterConnectionId, "afterConnectionId");
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        // connection_id is a fixed-format canonical opaque id (see
+        // ConnectionId), so an empty-string lower bound is always strictly
+        // less than every real id and never matches a real row itself.
+        String after = afterConnectionId.map(ConnectionId::value).orElse("");
+        return jdbcTemplate.query(FIND_PAGE_QUERY, this::mapRow, workspaceId.value(), after, limit);
+    }
+
     private boolean connectionExists(WorkspaceId workspaceId, ConnectionId connectionId) {
         List<Long> existing = jdbcTemplate.query(
                 "SELECT version FROM connections WHERE workspace_id = ? AND connection_id = ?",

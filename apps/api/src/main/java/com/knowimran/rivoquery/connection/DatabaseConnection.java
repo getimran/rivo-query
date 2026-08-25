@@ -112,6 +112,24 @@ public final class DatabaseConnection {
                 || target == ConnectionState.DISABLED;
     }
 
+    /**
+     * Advances the optimistic version without changing state, the current
+     * secret, or the credential-retirement instant. Used by metadata-only
+     * updates (e.g. a non-secret configuration change) that today have no
+     * dedicated field on this aggregate to mutate: {@link #transition}
+     * refuses a same-state target, so this is the only way such an update
+     * can still advance the resource's ETag. DELETING/DELETED are excluded
+     * because there is nothing left to "update" once deletion has begun.
+     */
+    public DatabaseConnection touch(ConnectionVersion expectedVersion) {
+        requireVersion(expectedVersion);
+        if (state == ConnectionState.DELETING || state == ConnectionState.DELETED) {
+            throw new InvalidConnectionTransitionException();
+        }
+        return new DatabaseConnection(
+                workspaceId, id, kind, state, version.next(), latestSecretVersion, currentSecret, secretRetireAt);
+    }
+
     public DatabaseConnection validationFailed(ConnectionVersion expectedVersion, Instant retireAt) {
         requireVersion(expectedVersion);
         if (state != ConnectionState.PENDING_VALIDATION

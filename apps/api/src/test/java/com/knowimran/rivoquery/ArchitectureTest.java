@@ -12,6 +12,8 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.knowimran.rivoquery.connection.application.lifecycle.ConnectionLifecycleService;
+import com.knowimran.rivoquery.connection.application.lifecycle.SecretOperationAuthorizationRegistry;
 import com.knowimran.rivoquery.connection.application.secret.SecretCapabilityAuthority;
 import com.knowimran.rivoquery.connection.application.secret.SecretStore;
 
@@ -79,6 +81,10 @@ public class ArchitectureTest {
             onlyAuthorityCallsSecretStoreRule();
 
     @ArchTest
+    static final ArchRule only_connection_lifecycle_service_calls_secret_operation_authorization_registry_mutators =
+            onlyLifecycleServiceCallsAuthorizationRegistryMutatorsRule();
+
+    @ArchTest
     public static final ArchRule untrusted_boundaries_do_not_depend_on_secret_grants =
             noClasses().that().resideInAnyPackage(
                             "..interfaceapi..",
@@ -138,6 +144,35 @@ public class ArchitectureTest {
                                 item, item.getName() + " calls " + call.getTarget().getFullName())));
                 item.getMethodReferencesFromSelf().stream()
                         .filter(reference -> reference.getTargetOwner().isAssignableTo(SecretStore.class))
+                        .forEach(reference -> events.add(SimpleConditionEvent.violated(
+                                item, item.getName() + " references " + reference.getTarget().getFullName())));
+            }
+        };
+    }
+
+    /**
+     * Public so a fixture test can run the exact production rule instance
+     * against a deliberately-violating fixture, rather than maintaining a
+     * second, driftable copy of this logic - mirrors {@link
+     * #onlyAuthorityCallsSecretStoreRule}.
+     */
+    public static ArchRule onlyLifecycleServiceCallsAuthorizationRegistryMutatorsRule() {
+        return classes().that().doNotHaveFullyQualifiedName(ConnectionLifecycleService.class.getName())
+                .should(notCallAuthorizationRegistryMutators());
+    }
+
+    private static ArchCondition<JavaClass> notCallAuthorizationRegistryMutators() {
+        return new ArchCondition<>("not call SecretOperationAuthorizationRegistry.register/release") {
+            @Override
+            public void check(JavaClass item, ConditionEvents events) {
+                item.getMethodCallsFromSelf().stream()
+                        .filter(call -> call.getTargetOwner().isAssignableTo(SecretOperationAuthorizationRegistry.class))
+                        .filter(call -> call.getName().equals("register") || call.getName().equals("release"))
+                        .forEach(call -> events.add(SimpleConditionEvent.violated(
+                                item, item.getName() + " calls " + call.getTarget().getFullName())));
+                item.getMethodReferencesFromSelf().stream()
+                        .filter(reference -> reference.getTargetOwner().isAssignableTo(SecretOperationAuthorizationRegistry.class))
+                        .filter(reference -> reference.getName().equals("register") || reference.getName().equals("release"))
                         .forEach(reference -> events.add(SimpleConditionEvent.violated(
                                 item, item.getName() + " references " + reference.getTarget().getFullName())));
             }

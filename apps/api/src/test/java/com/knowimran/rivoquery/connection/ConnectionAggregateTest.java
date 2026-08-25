@@ -265,6 +265,47 @@ class ConnectionAggregateTest {
                 .isInstanceOf(InvalidConnectionTransitionException.class);
     }
 
+    @Test
+    void touchAdvancesVersionWithoutChangingStateSecretOrRetirement() {
+        var active = withInitialSecret().transition(new ConnectionVersion(3), ConnectionState.ACTIVE);
+        var touched = active.touch(active.version());
+
+        assertThat(touched.state()).isEqualTo(ConnectionState.ACTIVE);
+        assertThat(touched.version()).isEqualTo(new ConnectionVersion(active.version().value() + 1));
+        assertThat(touched.currentSecret()).isEqualTo(active.currentSecret());
+        assertThat(touched.latestSecretVersion()).isEqualTo(active.latestSecretVersion());
+
+        assertThatThrownBy(() -> active.touch(new ConnectionVersion(active.version().value() + 5)))
+                .isInstanceOf(StaleConnectionVersionException.class);
+    }
+
+    @Test
+    void touchRejectsDeletingAndDeletedConnections() {
+        var deleting = DatabaseConnection.reserve(WORKSPACE, CONNECTION, DatabaseKind.POSTGRESQL)
+                .transition(new ConnectionVersion(1), ConnectionState.DELETING);
+        var deleted = deleting.transition(deleting.version(), ConnectionState.DELETED);
+
+        assertThatThrownBy(() -> deleting.touch(deleting.version()))
+                .isInstanceOf(InvalidConnectionTransitionException.class);
+        assertThatThrownBy(() -> deleted.touch(deleted.version()))
+                .isInstanceOf(InvalidConnectionTransitionException.class);
+    }
+
+    @Test
+    void publicStateExclusionListMatchesTheSqlLevelExclusionInFindPage() {
+        // JdbcConnectionRepository.FIND_PAGE_QUERY hard-codes
+        // `state NOT IN ('PENDING_SECRET', 'DELETED')` at the SQL level (it
+        // cannot reference this Java enum directly); this test is the tie
+        // that keeps the two in sync - if a future ConnectionState value
+        // changes isPublicState() without the SQL literal also being
+        // updated, this fails instead of silently leaking (or
+        // over-hiding) a state from the list page.
+        var nonPublicStates = Arrays.stream(ConnectionState.values())
+                .filter(state -> !state.isPublicState())
+                .toList();
+        assertThat(nonPublicStates).containsExactlyInAnyOrder(ConnectionState.PENDING_SECRET, ConnectionState.DELETED);
+    }
+
     private static DatabaseConnection withInitialSecret() {
         var reserved = DatabaseConnection.reserve(WORKSPACE, CONNECTION, DatabaseKind.POSTGRESQL);
         var versionReserved = reserved.reserveNextSecretVersion(reserved.version());
