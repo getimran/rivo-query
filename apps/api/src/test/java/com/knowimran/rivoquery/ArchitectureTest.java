@@ -26,7 +26,16 @@ public class ArchitectureTest {
     private static final String[] CORE_PACKAGES = {
         "..application..",
         "..identity..",
-        "..connection..",
+        // Anchored (no leading "..") rather than "..connection.." on
+        // purpose: a floating glob would also match
+        // com.knowimran.rivoquery.interfaceapi.connection (the P2-130 REST
+        // controller subpackage, added after this rule was written) purely
+        // because its last segment happens to be literally "connection",
+        // which is not a core-domain package at all and legitimately
+        // depends on interfaceapi/Spring. This anchored form matches only
+        // the real domain package com.knowimran.rivoquery.connection and
+        // everything nested under it (application/connector/pool/etc.).
+        "com.knowimran.rivoquery.connection..",
         "..catalog..",
         "..generation..",
         "..querypolicy..",

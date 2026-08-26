@@ -15,9 +15,15 @@ import com.knowimran.rivoquery.connection.application.ConnectionAuditCategory;
 import com.knowimran.rivoquery.connection.application.ConnectionAuditOutcome;
 import com.knowimran.rivoquery.connection.application.ConnectionAuditPort;
 import com.knowimran.rivoquery.connection.application.DurableOperation;
+import com.knowimran.rivoquery.connection.application.ConnectionLimits;
+import com.knowimran.rivoquery.connection.application.ConnectionObjectPolicy;
+import com.knowimran.rivoquery.connection.application.ConnectionProfile;
+import com.knowimran.rivoquery.connection.application.ConnectionTlsMode;
+import com.knowimran.rivoquery.connection.application.IdempotencyRecord;
 import com.knowimran.rivoquery.connection.application.IllegalDurableOperationTransitionException;
 import com.knowimran.rivoquery.connection.application.OperationAction;
 import com.knowimran.rivoquery.connection.application.OperationState;
+import com.knowimran.rivoquery.connection.application.destination.StructuredEndpoint;
 import com.knowimran.rivoquery.identity.ActorId;
 import com.knowimran.rivoquery.identity.GrantablePermission;
 import com.knowimran.rivoquery.identity.MembershipId;
@@ -79,6 +85,8 @@ class IdentityAndConnectionPersistenceIT {
     private static JdbcDurableOperationRepository OPERATIONS;
     private static JdbcConnectionAuditRepository AUDIT;
     private static JdbcConnectionRepository CONNECTIONS;
+    private static JdbcConnectionProfileRepository PROFILES;
+    private static JdbcIdempotencyKeyRepository IDEMPOTENCY;
 
     private static final AtomicLong SEQUENCE = new AtomicLong();
 
@@ -104,6 +112,8 @@ class IdentityAndConnectionPersistenceIT {
         OPERATIONS = CONTEXT.getBean(JdbcDurableOperationRepository.class);
         AUDIT = CONTEXT.getBean(JdbcConnectionAuditRepository.class);
         CONNECTIONS = CONTEXT.getBean(JdbcConnectionRepository.class);
+        PROFILES = CONTEXT.getBean(JdbcConnectionProfileRepository.class);
+        IDEMPOTENCY = CONTEXT.getBean(JdbcIdempotencyKeyRepository.class);
     }
 
     @AfterAll
@@ -231,6 +241,50 @@ class IdentityAndConnectionPersistenceIT {
         assertThat(PERMISSIONS.replace(regranted, 2L)).isTrue();
     }
 
+    /**
+     * S2 regression: the documented flow is GET (returns ETag {@code "0"}
+     * for a connection with no permission-collection row yet) -> DELETE with
+     * {@code If-Match: "0"}. Before the fix, revoke()'s bare UPDATE always
+     * matched zero rows when the collection didn't exist, so this always
+     * 412'd against the server's own just-issued ETag.
+     */
+    @Test
+    void revokeAgainstAConnectionWithNoPermissionCollectionYetSucceedsAsANoOp() {
+        WorkspaceId workspace = insertWorkspace();
+        ConnectionId connection = insertConnection(workspace);
+        MembershipId membership = insertMembership(workspace, insertActor("issuer-p4", "subject-p4"), WorkspaceRole.MEMBER);
+
+        assertThat(PERMISSIONS.revoke(workspace, connection, membership, 0L)).isTrue();
+        assertThat(PERMISSIONS.currentCollectionVersion(workspace, connection)).isEqualTo(0L);
+
+        // The collection version must still be exactly 0 afterward, so the
+        // very first real grant is still expected-at-0.
+        var grant = new ConnectionPermissionGrant(
+                workspace, connection, membership, Set.of(GrantablePermission.VIEW_SCHEMA), 1L);
+        assertThat(PERMISSIONS.replace(grant, 0L)).isTrue();
+    }
+
+    /**
+     * S2 regression: revoking a membership that never had a grant must not
+     * bump the collection version (which would invalidate every other
+     * client's ETag for a pure no-op).
+     */
+    @Test
+    void revokingAMembershipWithNoExistingGrantIsANoOpThatDoesNotAdvanceTheVersion() {
+        WorkspaceId workspace = insertWorkspace();
+        ConnectionId connection = insertConnection(workspace);
+        MembershipId grantedMember = insertMembership(workspace, insertActor("issuer-p5", "subject-p5"), WorkspaceRole.MEMBER);
+        MembershipId ungrantedMember = insertMembership(workspace, insertActor("issuer-p6", "subject-p6"), WorkspaceRole.MEMBER);
+        var grant = new ConnectionPermissionGrant(
+                workspace, connection, grantedMember, Set.of(GrantablePermission.VIEW_SCHEMA), 1L);
+        assertThat(PERMISSIONS.replace(grant, 0L)).isTrue();
+
+        assertThat(PERMISSIONS.revoke(workspace, connection, ungrantedMember, 1L)).isTrue();
+
+        assertThat(PERMISSIONS.currentCollectionVersion(workspace, connection)).isEqualTo(1L);
+        assertThat(PERMISSIONS.find(workspace, connection, grantedMember)).isPresent();
+    }
+
     @Test
     void durableOperationSaveIsAnIdempotentUpsertScopedByWorkspace() {
         WorkspaceId workspaceOne = insertWorkspace();
@@ -322,6 +376,114 @@ class IdentityAndConnectionPersistenceIT {
         // workspace_id, actor_id, connection_id, request_id, action, outcome, category,
         // occurred_at, recorded_at, id -- never a secret/credential/raw-driver column.
         assertThat(columnCount).isEqualTo(10);
+    }
+
+    /** S3 regression: real, persisted timestamps round-trip through find(), not fabricated at read time. */
+    @Test
+    void connectionProfileInsertPersistsRealTimestampsThatRoundTripOnFind() {
+        WorkspaceId workspace = insertWorkspace();
+        ConnectionId connection = insertConnection(workspace);
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+        ConnectionProfile profile = testProfile(workspace, connection, "primary", createdAt, createdAt);
+
+        PROFILES.insert(profile);
+
+        ConnectionProfile found = PROFILES.find(workspace, connection).orElseThrow();
+        assertThat(found.createdAt()).isEqualTo(createdAt);
+        assertThat(found.updatedAt()).isEqualTo(createdAt);
+        assertThat(found.name()).isEqualTo("primary");
+    }
+
+    /**
+     * S3/S8 regression: {@code save} (the PATCH upsert path) must preserve
+     * the row's true {@code created_at} while advancing {@code updated_at}
+     * to exactly the value the caller supplied - never the SQL {@code now()}
+     * this previously used, so the same request's own response can be built
+     * from the in-memory {@link ConnectionProfile} without a re-read and
+     * still be honest.
+     */
+    @Test
+    void connectionProfileSavePreservesCreatedAtAndAdvancesUpdatedAtToTheSuppliedValue() {
+        WorkspaceId workspace = insertWorkspace();
+        ConnectionId connection = insertConnection(workspace);
+        Instant createdAt = Instant.parse("2026-01-01T00:00:00Z");
+        PROFILES.insert(testProfile(workspace, connection, "primary", createdAt, createdAt));
+
+        Instant updatedAt = Instant.parse("2026-01-02T00:00:00Z");
+        PROFILES.save(testProfile(workspace, connection, "renamed", createdAt, updatedAt));
+
+        ConnectionProfile found = PROFILES.find(workspace, connection).orElseThrow();
+        assertThat(found.name()).isEqualTo("renamed");
+        assertThat(found.createdAt()).isEqualTo(createdAt);
+        assertThat(found.updatedAt()).isEqualTo(updatedAt);
+    }
+
+    private static ConnectionProfile testProfile(
+            WorkspaceId workspace, ConnectionId connection, String name, Instant createdAt, Instant updatedAt) {
+        return new ConnectionProfile(
+                workspace, connection, name,
+                new StructuredEndpoint("db.example.internal", 5432, "app"),
+                ConnectionTlsMode.VERIFY_FULL, false, false, true,
+                new ConnectionObjectPolicy(Set.of("public"), Set.of()),
+                new ConnectionLimits(30000, 1000),
+                createdAt, updatedAt);
+    }
+
+    /**
+     * B2 regression: {@code tryReserve} relies on a real Postgres unique
+     * violation (not merely the in-memory fakes' {@code putIfAbsent}) to
+     * make the reserve-before-mutate protocol atomic.
+     */
+    @Test
+    void idempotencyKeyTryReserveIsAtomicAgainstARealUniqueConstraint() {
+        WorkspaceId workspace = insertWorkspace();
+        ActorId actor = insertActor("issuer-idem", "subject-idem-" + SEQUENCE.incrementAndGet());
+        String key = "idem-key-real-pg-race-" + SEQUENCE.incrementAndGet();
+        var pending = IdempotencyRecord.pending(workspace, actor, key, "createConnection", "a".repeat(64));
+
+        assertThat(IDEMPOTENCY.tryReserve(pending)).isTrue();
+        // A second reservation attempt for the exact same primary key must
+        // fail (translated from a real DataIntegrityViolationException),
+        // exactly like the fakes model - this proves that translation
+        // against the actual driver/schema, not just the in-memory stand-in.
+        assertThat(IDEMPOTENCY.tryReserve(pending)).isFalse();
+
+        var found = IDEMPOTENCY.find(workspace, actor, key).orElseThrow();
+        assertThat(found.completed()).isFalse();
+    }
+
+    @Test
+    void idempotencyKeyCompleteMarksTheReservationTerminalAndRollbackOnlyRemovesAPendingOne() {
+        WorkspaceId workspace = insertWorkspace();
+        ConnectionId connection = insertConnection(workspace);
+        ActorId actor = insertActor("issuer-idem2", "subject-idem2-" + SEQUENCE.incrementAndGet());
+        String completedKey = "idem-key-real-pg-done-" + SEQUENCE.incrementAndGet();
+        String pendingKey = "idem-key-real-pg-pend-" + SEQUENCE.incrementAndGet();
+        IDEMPOTENCY.tryReserve(IdempotencyRecord.pending(workspace, actor, completedKey, "createConnection", "a".repeat(64)));
+        IDEMPOTENCY.tryReserve(IdempotencyRecord.pending(workspace, actor, pendingKey, "createConnection", "b".repeat(64)));
+
+        // operation_id has a real FK into durable_operations, so complete()
+        // must be exercised against a genuinely existing row.
+        OperationId operationId = newOperationId();
+        OPERATIONS.save(new DurableOperation(
+                operationId, workspace, actor, Optional.of(connection),
+                OperationAction.CONNECTION_CREATE, OperationState.SUCCEEDED, false));
+
+        IDEMPOTENCY.complete(workspace, actor, completedKey, Optional.of(operationId.value()));
+        var completed = IDEMPOTENCY.find(workspace, actor, completedKey).orElseThrow();
+        assertThat(completed.completed()).isTrue();
+        assertThat(completed.operationId()).contains(operationId.value());
+
+        // rollback() must never remove a completed row...
+        IDEMPOTENCY.rollback(workspace, actor, completedKey);
+        assertThat(IDEMPOTENCY.find(workspace, actor, completedKey)).isPresent();
+
+        // ...but must remove a still-pending one, freeing the key for reuse.
+        IDEMPOTENCY.rollback(workspace, actor, pendingKey);
+        assertThat(IDEMPOTENCY.find(workspace, actor, pendingKey)).isEmpty();
+        assertThat(IDEMPOTENCY.tryReserve(
+                IdempotencyRecord.pending(workspace, actor, pendingKey, "createConnection", "c".repeat(64))))
+                .isTrue();
     }
 
     private static WorkspaceId insertWorkspace() {

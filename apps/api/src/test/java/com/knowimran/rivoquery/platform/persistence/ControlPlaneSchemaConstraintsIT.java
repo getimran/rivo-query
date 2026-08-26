@@ -97,7 +97,7 @@ class ControlPlaneSchemaConstraintsIT {
                 "workspaces", "actors", "memberships", "connections",
                 "connection_secret_references", "connection_permission_collections",
                 "connection_permission_grants", "durable_operations", "idempotency_keys",
-                "connection_lifecycle_audit_events");
+                "connection_lifecycle_audit_events", "connection_profiles");
 
         for (String table : expectedTables) {
             Integer count = JDBC.queryForObject(
@@ -109,7 +109,8 @@ class ControlPlaneSchemaConstraintsIT {
 
         Integer appliedMigrations = JDBC.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success", Integer.class);
-        assertThat(appliedMigrations).isEqualTo(2);
+        // 3 migrations as of V3 (connection_profiles + idempotency_keys wiring, P2-130).
+        assertThat(appliedMigrations).isEqualTo(3);
     }
 
     @Test

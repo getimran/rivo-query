@@ -62,6 +62,19 @@ public final class ConnectionQueryService {
      * Returns up to {@code limit} connections in the actor's workspace,
      * filtered to what the actor may view, ordered ascending by connection
      * id (the same order the cursor is defined over).
+     *
+     * <p>Two known cursor edge cases, both accepted rather than "fixed":
+     * <ul>
+     *   <li>The raw page is taken first and <em>then</em> filtered for
+     *       members, so a member can receive fewer than {@code limit} rows
+     *       even when more viewable rows exist beyond the raw page - clients
+     *       keep paging with the last returned cursor until an empty or
+     *       under-full page stops them.</li>
+     *   <li>When the result size is an exact multiple of {@code limit}, the
+     *       next cursor returns one empty page before terminating - clients
+     *       detect "empty page" (or "page shorter than limit") to stop, not
+     *       a non-null cursor.</li>
+     * </ul></p>
      */
     public List<DatabaseConnection> list(ActorContext actor, Optional<ConnectionId> afterConnectionId, int limit) {
         Objects.requireNonNull(actor, "actor");

@@ -21,6 +21,7 @@ import com.knowimran.rivoquery.identity.MembershipId;
 import com.knowimran.rivoquery.identity.MembershipStatus;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import com.knowimran.rivoquery.identity.WorkspaceRole;
+import com.knowimran.rivoquery.identity.application.SingleMembershipRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Optional;
@@ -50,7 +51,7 @@ final class SecretStoreTestFixtures {
     static ActorContext actor() {
         var membership = new CurrentMembership(
                 ACTOR, WORKSPACE, new MembershipId("mem_" + ULID), WorkspaceRole.ADMINISTRATOR, MembershipStatus.ACTIVE);
-        return new ActorContext.Authority((issuer, subject, workspace) -> Optional.of(membership))
+        return new ActorContext.Authority(new SingleMembershipRepository(membership))
                 .resolve("issuer", "subject", WORKSPACE);
     }
 
