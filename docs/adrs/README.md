@@ -17,3 +17,4 @@ ADRs are immutable historical records. To change an accepted decision, add a new
 | 0011 | Metadata-only audit and privacy-safe telemetry | Accepted |
 | 0012 | React/TypeScript web console | Accepted |
 | 0013 | Vetted-address outbound destination enforcement | Accepted |
+| 0014 | Accept GPL-2.0-with-Universal-FOSS-Exception for the MySQL JDBC driver | Accepted |
