@@ -7,6 +7,10 @@
 .env.*
 !.env.example
 
+# Claude Code local settings
+.claude/settings.local.json
+.claude/settings.local*.json
+
 # Java / Maven
 target/
 *.class
