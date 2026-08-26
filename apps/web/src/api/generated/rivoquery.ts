@@ -4,6 +4,181 @@
  */
 
 export interface paths {
+    readonly "/api/v1/connections": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List connections visible in the selected workspace
+         * @description Administrators see every connection in the selected workspace. Members see only safe summaries for connections with an effective permission.
+         */
+        readonly get: operations["listConnections"];
+        readonly put?: never;
+        /**
+         * Create and validate a connection
+         * @description Requires an active workspace administrator with effective MANAGE. Credentials and TLS material are write-only. An exact idempotent replay returns the original result or current durable operation.
+         */
+        readonly post: operations["createConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        /**
+         * Get an administrator connection view
+         * @description Requires an active workspace administrator with effective MANAGE.
+         */
+        readonly get: operations["getConnection"];
+        readonly put?: never;
+        readonly post?: never;
+        /** Tombstone a connection and schedule exact cleanup */
+        readonly delete: operations["deleteConnection"];
+        readonly options?: never;
+        readonly head?: never;
+        /**
+         * Update non-secret connection configuration
+         * @description Requires an active administrator, Idempotency-Key, and the exact current connection ETag. Credential and certificate changes use rotate-secret.
+         */
+        readonly patch: operations["updateConnection"];
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}/disable": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Disable a connection
+         * @description Immediately stops new grants and pool borrows before draining pools.
+         */
+        readonly post: operations["disableConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}/enable": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Enable a validated connection
+         * @description Enabling never bypasses validation or restores expired credentials.
+         */
+        readonly post: operations["enableConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}/permissions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List explicit member permission grants
+         * @description Administrator effective MANAGE is derived from membership and is never stored or returned as a member grant.
+         */
+        readonly get: operations["listConnectionPermissions"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}/permissions/{membershipId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+                readonly membershipId: components["parameters"]["MembershipId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        /**
+         * Replace an active member's explicit connection permissions
+         * @description Requires the permission collection ETag. MANAGE is not grantable and unknown, inactive, administrator, or foreign memberships are indistinguishable.
+         */
+        readonly put: operations["replaceConnectionPermission"];
+        readonly post?: never;
+        /** Revoke an active member's explicit connection permissions */
+        readonly delete: operations["revokeConnectionPermission"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}/rotate-secret": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Stage, test, and switch connection secret material
+         * @description All request fields are write-only. The old secret remains current unless the staged version passes its bounded test and optimistic switch.
+         */
+        readonly post: operations["rotateConnectionSecret"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/connections/{connectionId}/test": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Start a bounded non-pooled connection test
+         * @description Uses only the currently bound secret version and a freshly validated destination. Raw resolver, secret-provider, and driver details are never returned.
+         */
+        readonly post: operations["testConnection"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/health/live": {
         readonly parameters: {
             readonly query?: never;
@@ -44,16 +219,253 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/operations/{operationId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Get a durable connection lifecycle operation
+         * @description The operation is workspace-scoped and actor-bound. Unknown, foreign, or inaccessible IDs all return OPERATION_NOT_FOUND.
+         */
+        readonly get: operations["getOperation"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/workspace-memberships": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List active memberships for permission administration
+         * @description Requires an active administrator in the selected workspace. This operation is read-only and cannot provision or change memberships.
+         */
+        readonly get: operations["listWorkspaceMemberships"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/workspaces": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Discover the caller's active workspace memberships
+         * @description This operation is unscoped and derives results from current server-side memberships. Supplying X-RivoQuery-Workspace-Id is rejected with WORKSPACE_SELECTOR_NOT_ALLOWED. An empty page is valid.
+         */
+        readonly get: operations["discoverWorkspaces"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        readonly ConnectionDetail: {
+            readonly connectionId: components["schemas"]["ConnectionId"];
+            readonly connectorOptions: components["schemas"]["ConnectorOptions"];
+            /** Format: date-time */
+            readonly createdAt: string;
+            /**
+             * Format: date-time
+             * @description Present only for a retained failed-validation credential.
+             */
+            readonly credentialRetireAt?: string;
+            readonly credentialState: components["schemas"]["CredentialState"];
+            readonly effectivePermissions: readonly components["schemas"]["EffectivePermission"][];
+            readonly endpoint: components["schemas"]["EndpointView"];
+            readonly kind: components["schemas"]["DatabaseKind"];
+            readonly limits: components["schemas"]["ConnectionLimits"];
+            readonly links: components["schemas"]["ConnectionLinks"];
+            readonly name: string;
+            readonly objectPolicy: components["schemas"]["ObjectAccessPolicy"];
+            readonly secretConfigured: boolean;
+            readonly state: components["schemas"]["ConnectionState"];
+            readonly tls: components["schemas"]["TlsSummary"];
+            /** Format: date-time */
+            readonly updatedAt: string;
+            /** Format: int64 */
+            readonly version: number;
+        };
+        /**
+         * @description Immutable, canonical, opaque connection identifier.
+         * @example con_01J6MZ4H9ST5N7YQ2C8W3V0KFX
+         */
+        readonly ConnectionId: string;
+        readonly ConnectionLimits: {
+            /** @default 200 */
+            readonly maxRows: number;
+            /** @default 15000 */
+            readonly statementTimeoutMs: number;
+        };
+        /** @description Permission-filtered affordances. A link is present only when the caller may perform that action; admin-only links are omitted from member summaries. */
+        readonly ConnectionLinks: {
+            /** Format: uri-reference */
+            readonly disable?: string;
+            /** Format: uri-reference */
+            readonly enable?: string;
+            /** Format: uri-reference */
+            readonly permissions?: string;
+            /** Format: uri-reference */
+            readonly rotateSecret?: string;
+            /** Format: uri-reference */
+            readonly self?: string;
+            /** Format: uri-reference */
+            readonly test?: string;
+        };
+        readonly ConnectionPage: {
+            readonly items: readonly components["schemas"]["ConnectionSummary"][];
+            readonly nextCursor?: components["schemas"]["Cursor"];
+        };
+        /** @enum {string} */
+        readonly ConnectionState: "PENDING_VALIDATION" | "ACTIVE" | "FAILED_VALIDATION" | "DISABLED" | "DELETING";
+        readonly ConnectionSummary: {
+            readonly connectionId: components["schemas"]["ConnectionId"];
+            /** Format: date-time */
+            readonly createdAt: string;
+            readonly effectivePermissions: readonly components["schemas"]["EffectivePermission"][];
+            readonly kind: components["schemas"]["DatabaseKind"];
+            readonly links?: components["schemas"]["ConnectionLinks"];
+            readonly name: string;
+            readonly state: components["schemas"]["ConnectionState"];
+            /** Format: date-time */
+            readonly updatedAt: string;
+            /** Format: int64 */
+            readonly version: number;
+        };
+        /** @description Closed safe option allowlist. Raw JDBC URLs, driver classes, socket factories, authentication plugins, file paths, and arbitrary driver properties are never accepted. */
+        readonly ConnectorOptions: {
+            /** @default true */
+            readonly tcpKeepAlive: boolean;
+        };
+        readonly CreateConnectionRequest: {
+            readonly connectorOptions: components["schemas"]["ConnectorOptions"];
+            readonly endpoint: components["schemas"]["EndpointInput"];
+            readonly kind: components["schemas"]["DatabaseKind"];
+            readonly limits: components["schemas"]["ConnectionLimits"];
+            readonly name: string;
+            readonly objectPolicy: components["schemas"]["ObjectAccessPolicy"];
+            readonly secret: components["schemas"]["SecretInput"];
+            readonly tls: components["schemas"]["TlsInput"];
+        };
+        /** @enum {string} */
+        readonly CredentialState: "CURRENT" | "RETAINED_FOR_RETEST" | "EXPIRED" | "REVOCATION_PENDING";
+        readonly Cursor: string;
+        /** @enum {string} */
+        readonly DatabaseKind: "POSTGRESQL" | "MYSQL";
+        /** @enum {string} */
+        readonly EffectivePermission: "VIEW_SCHEMA" | "QUERY" | "EXPORT" | "MANAGE";
+        readonly EndpointInput: {
+            /** @description Database name, not a path, URL, or driver property. */
+            readonly database: string;
+            /** @description DNS name or strict unbracketed IP literal only. URI user information, paths, queries, fragments, embedded ports, zone IDs, and alternative numeric IPv4 forms are rejected by server validation. */
+            readonly host: string;
+            readonly port: number;
+        };
+        readonly EndpointView: {
+            readonly database: string;
+            readonly host: string;
+            readonly port: number;
+        };
+        /**
+         * @description MANAGE is intentionally not grantable to members.
+         * @enum {string}
+         */
+        readonly GrantablePermission: "VIEW_SCHEMA" | "QUERY" | "EXPORT";
         readonly HealthResponse: {
             /** @enum {string} */
             readonly status: "UP";
         };
-        /** @description RFC 9457 problem details with stable RivoQuery extensions. */
+        /** @example idem-01J6MZ4H9ST5N7YQ2C8W3V0KFX */
+        readonly IdempotencyKey: string;
+        /**
+         * @description Immutable, canonical, opaque membership identifier.
+         * @example mem_01J6MZ4H9ST5N7YQ2C8W3V0KFX
+         */
+        readonly MembershipId: string;
+        readonly MembershipPage: {
+            readonly items: readonly components["schemas"]["MembershipSummary"][];
+            readonly nextCursor?: components["schemas"]["Cursor"];
+        };
+        readonly MembershipSummary: {
+            readonly displayName: string;
+            readonly membershipId: components["schemas"]["MembershipId"];
+            readonly role: components["schemas"]["WorkspaceRole"];
+        };
+        readonly ObjectAccessPolicy: {
+            readonly allowedSchemas: readonly string[];
+            /** @description Empty means all non-system tables inside allowed schemas. */
+            readonly allowedTables: readonly string[];
+        };
+        readonly Operation: {
+            readonly action: components["schemas"]["OperationAction"];
+            /** Format: date-time */
+            readonly completedAt?: string;
+            readonly connectionId?: components["schemas"]["ConnectionId"];
+            /** Format: date-time */
+            readonly createdAt: string;
+            readonly failure?: components["schemas"]["OperationFailure"];
+            readonly links: components["schemas"]["OperationLinks"];
+            readonly operationId: components["schemas"]["OperationId"];
+            readonly state: components["schemas"]["OperationState"];
+            /** Format: date-time */
+            readonly updatedAt: string;
+        };
+        /** @enum {string} */
+        readonly OperationAction: "CONNECTION_CREATE" | "CONNECTION_UPDATE" | "CONNECTION_DELETE" | "CONNECTION_TEST" | "CONNECTION_ROTATE_SECRET";
+        readonly OperationFailure: {
+            readonly code: string;
+            /** @description Safe detail without raw provider, resolver, or driver information. */
+            readonly detail: string;
+        };
+        /**
+         * @description Immutable, canonical, opaque durable-operation identifier.
+         * @example op_01J6MZ4H9ST5N7YQ2C8W3V0KFX
+         */
+        readonly OperationId: string;
+        readonly OperationLinks: {
+            /** Format: uri-reference */
+            readonly connection?: string;
+            /** Format: uri-reference */
+            readonly self: string;
+        };
+        /** @enum {string} */
+        readonly OperationState: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "INDETERMINATE";
+        readonly PermissionCollection: {
+            readonly items: readonly components["schemas"]["PermissionGrant"][];
+            readonly nextCursor?: components["schemas"]["Cursor"];
+            /** Format: int64 */
+            readonly version: number;
+        };
+        readonly PermissionGrant: {
+            readonly membershipId: components["schemas"]["MembershipId"];
+            readonly permissions: readonly components["schemas"]["GrantablePermission"][];
+        };
+        /** @description RFC 9457 problem details with stable RivoQuery extensions. Details never contain credentials, certificates, tokens, connection URLs, resolved addresses, policy rules, driver messages, stack traces, or existence hints. */
         readonly ProblemDetails: {
+            /** @description Stable codes include AUTHENTICATION_REQUIRED, WORKSPACE_SELECTOR_INVALID, WORKSPACE_SELECTOR_NOT_ALLOWED, WORKSPACE_ACCESS_DENIED, ADMINISTRATOR_REQUIRED, CONNECTION_NOT_FOUND, MEMBERSHIP_NOT_FOUND, OPERATION_NOT_FOUND, VALIDATION_FAILED, PRECONDITION_REQUIRED, PRECONDITION_FAILED, IDEMPOTENCY_KEY_REQUIRED, IDEMPOTENCY_KEY_REUSED, CONNECTION_STATE_CONFLICT, DESTINATION_NOT_ALLOWED, DESTINATION_RESOLUTION_FAILED, SECRET_PROVIDER_UNAVAILABLE, CONNECTION_TEST_FAILED, RATE_LIMITED, and INTERNAL_ERROR. */
             readonly code: string;
             readonly detail: string;
             /** Format: uri-reference */
@@ -64,12 +476,114 @@ export interface components {
             /** Format: uri */
             readonly type: string;
         };
+        readonly ReplacePermissionRequest: {
+            readonly permissions: readonly components["schemas"]["GrantablePermission"][];
+        };
         /** @example request-01J6MZ4H9S */
         readonly RequestId: string;
+        /** @description clientCertificatePem and clientPrivateKeyPem must be supplied together. The Java server must enforce this cross-field rule at the interface boundary. */
+        readonly RotateSecretRequest: {
+            /** Format: password */
+            readonly caCertificatePem?: string;
+            /** Format: password */
+            readonly clientCertificatePem?: string;
+            /** Format: password */
+            readonly clientPrivateKeyPem?: string;
+            readonly secret: components["schemas"]["SecretInput"];
+        };
+        readonly SecretInput: {
+            /** Format: password */
+            readonly password: string;
+            /** Format: password */
+            readonly username: string;
+        };
+        /** @description clientCertificatePem and clientPrivateKeyPem must be supplied together. The Java server must enforce this cross-field rule at the interface boundary. */
+        readonly TlsInput: {
+            /** Format: password */
+            readonly caCertificatePem?: string;
+            /** Format: password */
+            readonly clientCertificatePem?: string;
+            /** Format: password */
+            readonly clientPrivateKeyPem?: string;
+            readonly mode: components["schemas"]["TlsMode"];
+        };
+        /**
+         * @description VERIFY_FULL is the production mode. DISABLED is accepted only when an explicit deployment policy permits a synthetic local destination.
+         * @enum {string}
+         */
+        readonly TlsMode: "VERIFY_FULL" | "DISABLED";
+        readonly TlsSummary: {
+            readonly clientCertificateConfigured: boolean;
+            readonly customCaConfigured: boolean;
+            readonly mode: components["schemas"]["TlsMode"];
+        };
+        /** @description At least one property is required. The Java server must enforce this non-empty PATCH rule at the interface boundary. */
+        readonly UpdateConnectionRequest: {
+            readonly connectorOptions?: components["schemas"]["ConnectorOptions"];
+            readonly endpoint?: components["schemas"]["EndpointInput"];
+            readonly limits?: components["schemas"]["ConnectionLimits"];
+            readonly name?: string;
+            readonly objectPolicy?: components["schemas"]["ObjectAccessPolicy"];
+            readonly tlsMode?: components["schemas"]["TlsMode"];
+        };
+        /**
+         * @description Immutable, canonical, opaque workspace identifier.
+         * @example wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX
+         */
+        readonly WorkspaceId: string;
+        readonly WorkspacePage: {
+            readonly items: readonly components["schemas"]["WorkspaceSummary"][];
+            readonly nextCursor?: components["schemas"]["Cursor"];
+            /** @description Always true; clients must explicitly select a workspace for scoped requests. */
+            readonly selectionRequired: boolean;
+        };
+        /** @enum {string} */
+        readonly WorkspaceRole: "ADMINISTRATOR" | "MEMBER";
+        readonly WorkspaceSummary: {
+            readonly displayName: string;
+            readonly role: components["schemas"]["WorkspaceRole"];
+            readonly workspaceId: components["schemas"]["WorkspaceId"];
+        };
     };
     responses: {
-        /** @description The control database cannot currently satisfy readiness checks. */
+        readonly BadRequest: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly Conflict: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description Connection lifecycle state changed. */
+        readonly ConnectionChanged: {
+            headers: {
+                readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                readonly ETag: components["headers"]["ETag"];
+                readonly "X-Request-Id": components["headers"]["RequestId"];
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["ConnectionDetail"];
+            };
+        };
         readonly ControlDatabaseUnavailable: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly Forbidden: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description The control database cannot currently satisfy readiness checks. */
+        readonly HealthControlDatabaseUnavailable: {
             headers: {
                 readonly "X-Request-Id": components["headers"]["RequestId"];
                 readonly [name: string]: unknown;
@@ -79,7 +593,7 @@ export interface components {
             };
         };
         /** @description An unexpected internal error occurred. */
-        readonly InternalError: {
+        readonly HealthInternalError: {
             headers: {
                 readonly "X-Request-Id": components["headers"]["RequestId"];
                 readonly [name: string]: unknown;
@@ -89,7 +603,7 @@ export interface components {
             };
         };
         /** @description The requested response media type is not supported. */
-        readonly NotAcceptable: {
+        readonly HealthNotAcceptable: {
             headers: {
                 readonly "X-Request-Id": components["headers"]["RequestId"];
                 readonly [name: string]: unknown;
@@ -98,13 +612,123 @@ export interface components {
                 readonly "application/problem+json": components["schemas"]["ProblemDetails"];
             };
         };
+        readonly InternalError: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly NotAcceptable: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly NotFound: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description Durable operation accepted or exact idempotent replay found. */
+        readonly OperationAccepted: {
+            headers: {
+                readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                readonly Location: components["headers"]["Location"];
+                readonly "X-Request-Id": components["headers"]["RequestId"];
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["Operation"];
+            };
+        };
+        /** @description Permission collection changed. */
+        readonly PermissionCollectionChanged: {
+            headers: {
+                readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                readonly ETag: components["headers"]["ETag"];
+                readonly "X-Request-Id": components["headers"]["RequestId"];
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/json": components["schemas"]["PermissionCollection"];
+            };
+        };
+        readonly PreconditionFailed: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly PreconditionRequired: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description RFC 9457 problem details with a stable safe RivoQuery code. */
+        readonly ProblemResponse: {
+            headers: {
+                readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                readonly "X-Request-Id": components["headers"]["RequestId"];
+                readonly [name: string]: unknown;
+            };
+            content: {
+                readonly "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        readonly ServiceUnavailable: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly TooManyRequests: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly Unauthorized: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly UnprocessableEntity: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
+        readonly UnsupportedMediaType: {
+            headers: {
+                readonly [name: string]: unknown;
+            };
+            content?: never;
+        };
     };
     parameters: {
+        readonly ConnectionId: components["schemas"]["ConnectionId"];
+        readonly Cursor: components["schemas"]["Cursor"];
+        /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+        readonly IdempotencyKey: components["schemas"]["IdempotencyKey"];
+        /** @description Exact strong ETag from the current resource or collection. */
+        readonly IfMatch: string;
+        readonly Limit: number;
+        readonly MembershipId: components["schemas"]["MembershipId"];
+        readonly OperationId: components["schemas"]["OperationId"];
         /** @description Optional caller request identifier. Invalid values are replaced. */
         readonly RequestId: components["schemas"]["RequestId"];
+        /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+        readonly WorkspaceId: components["schemas"]["WorkspaceId"];
     };
     requestBodies: never;
     headers: {
+        /** @description Strong optimistic concurrency token for this representation. */
+        readonly ETag: string;
+        readonly Location: string;
+        readonly PrivateNoStore: "private, no-store";
         /** @description Accepted caller identifier or a server-generated replacement. */
         readonly RequestId: components["schemas"]["RequestId"];
     };
@@ -112,6 +736,449 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    readonly listConnections: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: components["parameters"]["Cursor"];
+                readonly limit?: components["parameters"]["Limit"];
+            };
+            readonly header: {
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description A bounded page of authorized connection summaries. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConnectionPage"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly createConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CreateConnectionRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Connection creation completed. */
+            readonly 201: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly ETag: components["headers"]["ETag"];
+                    readonly Location: components["headers"]["Location"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConnectionDetail"];
+                };
+            };
+            readonly 202: components["responses"]["OperationAccepted"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 415: components["responses"]["UnsupportedMediaType"];
+            readonly 422: components["responses"]["UnprocessableEntity"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+            readonly 503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    readonly getConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Safe connection configuration without secret material. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly ETag: components["headers"]["ETag"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ConnectionDetail"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly deleteConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            readonly 202: components["responses"]["OperationAccepted"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly updateConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdateConnectionRequest"];
+            };
+        };
+        readonly responses: {
+            readonly 200: components["responses"]["ConnectionChanged"];
+            readonly 202: components["responses"]["OperationAccepted"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 415: components["responses"]["UnsupportedMediaType"];
+            readonly 422: components["responses"]["UnprocessableEntity"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly disableConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            readonly 200: components["responses"]["ConnectionChanged"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly enableConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            readonly 200: components["responses"]["ConnectionChanged"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+            readonly 503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    readonly listConnectionPermissions: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: components["parameters"]["Cursor"];
+                readonly limit?: components["parameters"]["Limit"];
+            };
+            readonly header: {
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current member grants and permission collection version. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly ETag: components["headers"]["ETag"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PermissionCollection"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly replaceConnectionPermission: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+                readonly membershipId: components["parameters"]["MembershipId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ReplacePermissionRequest"];
+            };
+        };
+        readonly responses: {
+            readonly 200: components["responses"]["PermissionCollectionChanged"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 415: components["responses"]["UnsupportedMediaType"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly revokeConnectionPermission: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+                readonly membershipId: components["parameters"]["MembershipId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            readonly 200: components["responses"]["PermissionCollectionChanged"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly rotateConnectionSecret: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["RotateSecretRequest"];
+            };
+        };
+        readonly responses: {
+            readonly 202: components["responses"]["OperationAccepted"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 415: components["responses"]["UnsupportedMediaType"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+            readonly 503: components["responses"]["ServiceUnavailable"];
+        };
+    };
+    readonly testConnection: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Opaque mutation key scoped to actor, workspace, operation, and canonical request fingerprint. Reuse with a different request returns 409. */
+                readonly "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                /** @description Exact strong ETag from the current resource or collection. */
+                readonly "If-Match": components["parameters"]["IfMatch"];
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly connectionId: components["parameters"]["ConnectionId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            readonly 202: components["responses"]["OperationAccepted"];
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 409: components["responses"]["Conflict"];
+            readonly 412: components["responses"]["PreconditionFailed"];
+            readonly 428: components["responses"]["PreconditionRequired"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+            readonly 503: components["responses"]["ServiceUnavailable"];
+        };
+    };
     readonly getLiveness: {
         readonly parameters: {
             readonly query?: never;
@@ -134,8 +1201,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["HealthResponse"];
                 };
             };
-            readonly 406: components["responses"]["NotAcceptable"];
-            readonly 500: components["responses"]["InternalError"];
+            readonly 406: components["responses"]["HealthNotAcceptable"];
+            readonly 500: components["responses"]["HealthInternalError"];
         };
     };
     readonly getReadiness: {
@@ -160,9 +1227,114 @@ export interface operations {
                     readonly "application/json": components["schemas"]["HealthResponse"];
                 };
             };
+            readonly 406: components["responses"]["HealthNotAcceptable"];
+            readonly 500: components["responses"]["HealthInternalError"];
+            readonly 503: components["responses"]["HealthControlDatabaseUnavailable"];
+        };
+    };
+    readonly getOperation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path: {
+                readonly operationId: components["parameters"]["OperationId"];
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current durable operation state. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["Operation"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 404: components["responses"]["NotFound"];
             readonly 406: components["responses"]["NotAcceptable"];
+            readonly 429: components["responses"]["TooManyRequests"];
             readonly 500: components["responses"]["InternalError"];
-            readonly 503: components["responses"]["ControlDatabaseUnavailable"];
+        };
+    };
+    readonly listWorkspaceMemberships: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: components["parameters"]["Cursor"];
+                readonly limit?: components["parameters"]["Limit"];
+            };
+            readonly header: {
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+                /** @description Exact request-local selector. Exactly one canonical value is required; values are never trimmed, split, case-folded, or trusted without a current server-side membership lookup. */
+                readonly "X-RivoQuery-Workspace-Id": components["parameters"]["WorkspaceId"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Active membership summaries in the selected workspace. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["MembershipPage"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 403: components["responses"]["Forbidden"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
+        };
+    };
+    readonly discoverWorkspaces: {
+        readonly parameters: {
+            readonly query?: {
+                readonly cursor?: components["parameters"]["Cursor"];
+                readonly limit?: components["parameters"]["Limit"];
+            };
+            readonly header?: {
+                /** @description Optional caller request identifier. Invalid values are replaced. */
+                readonly "X-Request-Id"?: components["parameters"]["RequestId"];
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Active workspace memberships visible to the caller. */
+            readonly 200: {
+                headers: {
+                    readonly "Cache-Control": components["headers"]["PrivateNoStore"];
+                    readonly "X-Request-Id": components["headers"]["RequestId"];
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WorkspacePage"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
+            readonly 406: components["responses"]["NotAcceptable"];
+            readonly 429: components["responses"]["TooManyRequests"];
+            readonly 500: components["responses"]["InternalError"];
         };
     };
 }

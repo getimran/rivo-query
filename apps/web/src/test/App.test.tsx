@@ -3,7 +3,9 @@ import axe from "axe-core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlatformHealthClient, PlatformHealthResult } from "../api/health";
+import type { RivoqueryApi } from "../api/rivoqueryApi";
 import { App } from "../app/App";
+import { connectionSummary, workspaceOne } from "./fixtures";
 
 function clientReturning(result: PlatformHealthResult): PlatformHealthClient {
   return { check: vi.fn().mockResolvedValue(result) };
@@ -139,5 +141,58 @@ describe("RivoQuery application shell", () => {
       "retry-request-02",
     );
     expect(check).toHaveBeenCalledTimes(2);
+  });
+
+  it("signs in with a pasted token and renders the connections console", async () => {
+    sessionStorage.clear();
+
+    const api: RivoqueryApi = {
+      discoverWorkspaces: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [workspaceOne], nextCursor: null },
+        etag: null,
+        requestId: "ws-request-01",
+      }),
+      listConnections: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [connectionSummary()], nextCursor: null },
+        etag: null,
+        requestId: "list-request-01",
+      }),
+      getConnection: vi.fn(),
+      createConnection: vi.fn(),
+      updateConnection: vi.fn(),
+      disableConnection: vi.fn(),
+      deleteConnection: vi.fn(),
+    };
+    const createApi = vi.fn((token: string) => {
+      expect(token).toBe("pasted-token");
+      return api;
+    });
+
+    render(<App healthClient={readyClient} createApi={createApi} />);
+
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Development access token"), {
+      target: { value: " pasted-token " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(createApi).toHaveBeenCalledWith("pasted-token");
+    expect(await screen.findByRole("heading", { name: "Choose a workspace" })).toBeVisible();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Acme Analytics/ }));
+    expect(await screen.findByRole("list", { name: "Connections" })).toBeVisible();
+  });
+
+  it("falls back to the default API factory when none is injected", async () => {
+    sessionStorage.setItem("rivoquery.dev.token", "stored-token");
+
+    render(<App healthClient={readyClient} />);
+
+    // The default factory builds a real client against the relative base URL,
+    // which jsdom's fetch cannot resolve, so the console surfaces a safe error.
+    expect(await screen.findByRole("alert", { name: "Unable to load workspaces" })).toBeVisible();
   });
 });
