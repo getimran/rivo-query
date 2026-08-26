@@ -45,6 +45,20 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <!-- Compile scope, unlike org.postgresql:postgresql's runtime scope: unlike pgjdbc's
+                 javax.net.SocketFactory extension point, Connector/J's own socket-pinning hook
+                 (com.mysql.cj.protocol.SocketFactory) is a driver-owned type, so
+                 RivoQueryPinnedSocketFactory must reference com.mysql.cj.* classes directly - see
+                 platform/connector/mysql/RivoQueryPinnedSocketFactory's class Javadoc.
+
+                 S8 (P2-120 review, flagged not resolved): licensed GPL-2.0-with-Universal-FOSS-Exception,
+                 unlike org.postgresql:postgresql's BSD-2 license below. This is a material
+                 dependency/distribution decision with no ADR recorded - escalate to product/legal
+                 before this connector ships; not an engineering-level decision to resolve here. -->
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+        </dependency>
+        <dependency>
             <!-- Raw DNS message construction/parsing (TTL, CNAME chain, truncation, rcode) for
                  bounded destination resolution; java.net.InetAddress exposes none of this. -->
             <groupId>dnsjava</groupId>
@@ -83,6 +97,11 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- S9 (P2-120 review): org.testcontainers:mysql intentionally omitted - MysqlPhysicalJdbcConnectorIT
+             builds its own custom-Dockerfile GenericContainer (TLS cert mounting, custom mysqld TLS
+             command flags) and never uses MySQLContainer's built-in JDBC URL/driver wiring, which
+             this connector bypasses entirely anyway; keeping the dependency around unused would only
+             add an unnecessary artifact to the test classpath. -->
     </dependencies>
 
     <build>
