@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knowimran.rivoquery.identity.ActorContext;
 import com.knowimran.rivoquery.identity.ActorId;
+import com.knowimran.rivoquery.identity.application.SingleMembershipRepository;
 import com.knowimran.rivoquery.identity.AuthorizationDeniedException;
 import com.knowimran.rivoquery.identity.MembershipId;
 import com.knowimran.rivoquery.identity.WorkspaceId;
@@ -182,7 +183,7 @@ class ConnectionAggregateTest {
                 new MembershipId("mem_01J6MZ4H9ST5N7YQ2C8W3V0KFY"),
                 WorkspaceRole.ADMINISTRATOR,
                 MembershipStatus.ACTIVE);
-        var foreign = new ActorContext.Authority((issuer, subject, workspace) -> Optional.of(membership))
+        var foreign = new ActorContext.Authority(new SingleMembershipRepository(membership))
                 .resolve("issuer", "subject", foreignWorkspace);
 
         assertThatThrownBy(() -> connection.authorize(foreign))

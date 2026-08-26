@@ -42,13 +42,15 @@ class PlatformMigrationIT {
                             "SELECT schema_version FROM platform_heartbeat WHERE singleton_id = 1",
                             String.class))
                     .isEqualTo("1");
-            assertThat(appliedMigrationCount(jdbc)).isEqualTo(2);
+            // 3 migrations as of V3 (connection_profiles + idempotency_keys wiring, P2-130).
+            assertThat(appliedMigrationCount(jdbc)).isEqualTo(3);
         }
 
         try (ConfigurableApplicationContext repeatStart = startApplication()) {
             JdbcTemplate jdbc = repeatStart.getBean(JdbcTemplate.class);
 
-            assertThat(appliedMigrationCount(jdbc)).isEqualTo(2);
+            // 3 migrations as of V3 (connection_profiles + idempotency_keys wiring, P2-130).
+            assertThat(appliedMigrationCount(jdbc)).isEqualTo(3);
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM platform_heartbeat", Integer.class))
                     .isEqualTo(1);
         }

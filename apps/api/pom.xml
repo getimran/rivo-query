@@ -164,6 +164,43 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!--
+                    HealthEndpointIT (the only *IT that boots a full
+                    ApplicationContext) transitively pulls in every
+                    @Configuration on the classpath via default component
+                    scanning, including ConnectionLifecycleWiringConfiguration
+                    (P2-130) and JwtAuthenticationConfiguration (P2-130) - both
+                    fail application startup outright (by design, matching
+                    this codebase's fail-closed-at-startup convention) unless
+                    their required configuration is present, even though
+                    HealthEndpointIT itself never exercises connection
+                    lifecycle, secret-store, or JWT behavior. These values are
+                    synthetic, test-only, and never used to protect anything
+                    real: RIVOQUERY_SECRETS_LOCAL_* satisfy
+                    KeyEncryptionKeyRing/SecretReferenceKey.fromEnvironment
+                    (raw System.getenv() reads that Spring test utilities like
+                    @DynamicPropertySource cannot override, hence configuring
+                    them here rather than in the test class itself), and
+                    RIVOQUERY_AUTH_JWT_* satisfy JwtAuthenticationProperties
+                    (Spring @ConfigurationProperties, which does support
+                    relaxed binding from an environment variable).
+                    RIVOQUERY_SECRETS_PROVIDER=local is the post-review S6
+                    safety-rail opt-in (see ConnectionLifecycleWiringConfiguration's
+                    own Javadoc) - without it, secretStore() now fails closed
+                    at startup even in this synthetic test-only configuration.
+                    -->
+                    <environmentVariables>
+                        <RIVOQUERY_SECRETS_PROVIDER>local</RIVOQUERY_SECRETS_PROVIDER>
+                        <RIVOQUERY_SECRETS_LOCAL_STORAGE_DIR>${project.build.directory}/it-secrets-storage</RIVOQUERY_SECRETS_LOCAL_STORAGE_DIR>
+                        <RIVOQUERY_SECRETS_LOCAL_KEYS>it-test-key-1:sBShCasJ0WoUpRKGPMkg83rVRQ3RW0lXSq/ouA7U/ao=</RIVOQUERY_SECRETS_LOCAL_KEYS>
+                        <RIVOQUERY_SECRETS_LOCAL_CURRENT_KEY_ID>it-test-key-1</RIVOQUERY_SECRETS_LOCAL_CURRENT_KEY_ID>
+                        <RIVOQUERY_SECRETS_LOCAL_REFERENCE_KEY>2gImhAFjkYAnnA/+phrqrUXOUfpY6evHhlrVQXvcJwk=</RIVOQUERY_SECRETS_LOCAL_REFERENCE_KEY>
+                        <RIVOQUERY_AUTH_JWT_ISSUER>https://it-test.invalid/issuer</RIVOQUERY_AUTH_JWT_ISSUER>
+                        <RIVOQUERY_AUTH_JWT_AUDIENCE>rivoquery-it-test</RIVOQUERY_AUTH_JWT_AUDIENCE>
+                        <RIVOQUERY_AUTH_JWT_HMAC_SECRET_BASE64>8UiYe9QgQVrG93BIC4EmxASGt+O1k3PUcs0A2TLCoZg=</RIVOQUERY_AUTH_JWT_HMAC_SECRET_BASE64>
+                    </environmentVariables>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

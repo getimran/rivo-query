@@ -23,6 +23,7 @@ import com.knowimran.rivoquery.identity.MembershipId;
 import com.knowimran.rivoquery.identity.MembershipStatus;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import com.knowimran.rivoquery.identity.WorkspaceRole;
+import com.knowimran.rivoquery.identity.application.SingleMembershipRepository;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -262,7 +263,7 @@ class SecretGrantValidationTest {
     private static ActorContext actorFor(WorkspaceId workspaceId, ActorId actorId) {
         var membership = new CurrentMembership(
                 actorId, workspaceId, new MembershipId(MEMBERSHIP), WorkspaceRole.ADMINISTRATOR, MembershipStatus.ACTIVE);
-        return new ActorContext.Authority((issuer, subject, workspace) -> Optional.of(membership))
+        return new ActorContext.Authority(new SingleMembershipRepository(membership))
                 .resolve("issuer", "subject", workspaceId);
     }
 

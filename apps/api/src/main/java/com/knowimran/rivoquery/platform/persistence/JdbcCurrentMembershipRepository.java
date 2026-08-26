@@ -7,6 +7,7 @@ import com.knowimran.rivoquery.identity.MembershipStatus;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import com.knowimran.rivoquery.identity.WorkspaceRole;
 import com.knowimran.rivoquery.identity.application.CurrentMembershipRepository;
+import com.knowimran.rivoquery.identity.application.MembershipDirectoryEntry;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,4 +57,64 @@ public final class JdbcCurrentMembershipRepository implements CurrentMembershipR
                 issuer, subject, workspaceId.value());
         return rows.stream().findFirst();
     }
+
+    private static final String FIND_FOR_ACTOR_QUERY = """
+            SELECT m.membership_id, m.workspace_id, m.role, a.subject
+            FROM actors a
+            JOIN memberships m ON m.actor_id = a.actor_id
+            WHERE a.issuer = ? AND a.subject = ? AND m.status = 'ACTIVE'
+            ORDER BY m.membership_id
+            """;
+
+    @Override
+    public List<MembershipDirectoryEntry> findActiveMembershipsForActor(String issuer, String subject) {
+        Objects.requireNonNull(issuer, "issuer");
+        Objects.requireNonNull(subject, "subject");
+        return jdbcTemplate.query(FIND_FOR_ACTOR_QUERY, ROW_MAPPER, issuer, subject);
+    }
+
+    private static final String FIND_FOR_WORKSPACE_QUERY = """
+            SELECT m.membership_id, m.workspace_id, m.role, a.subject
+            FROM actors a
+            JOIN memberships m ON m.actor_id = a.actor_id
+            WHERE m.workspace_id = ? AND m.status = 'ACTIVE' AND m.membership_id > ?
+            ORDER BY m.membership_id
+            LIMIT ?
+            """;
+
+    @Override
+    public List<MembershipDirectoryEntry> findActiveMemberships(
+            WorkspaceId workspaceId, Optional<MembershipId> afterMembershipId, int limit) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(afterMembershipId, "afterMembershipId");
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        String after = afterMembershipId.map(MembershipId::value).orElse("");
+        return jdbcTemplate.query(
+                FIND_FOR_WORKSPACE_QUERY, ROW_MAPPER, workspaceId.value(), after, limit);
+    }
+
+    private static final String FIND_ONE_QUERY = """
+            SELECT m.membership_id, m.workspace_id, m.role, a.subject
+            FROM actors a
+            JOIN memberships m ON m.actor_id = a.actor_id
+            WHERE m.workspace_id = ? AND m.membership_id = ? AND m.status = 'ACTIVE'
+            """;
+
+    @Override
+    public Optional<MembershipDirectoryEntry> findActiveMembership(WorkspaceId workspaceId, MembershipId membershipId) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(membershipId, "membershipId");
+        List<MembershipDirectoryEntry> rows = jdbcTemplate.query(
+                FIND_ONE_QUERY, ROW_MAPPER, workspaceId.value(), membershipId.value());
+        return rows.stream().findFirst();
+    }
+
+    private static final org.springframework.jdbc.core.RowMapper<MembershipDirectoryEntry> ROW_MAPPER =
+            (resultSet, rowNumber) -> new MembershipDirectoryEntry(
+                    new WorkspaceId(resultSet.getString("workspace_id")),
+                    new MembershipId(resultSet.getString("membership_id")),
+                    resultSet.getString("subject"),
+                    WorkspaceRole.valueOf(resultSet.getString("role")));
 }

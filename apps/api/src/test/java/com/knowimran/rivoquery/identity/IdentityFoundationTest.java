@@ -113,6 +113,7 @@ class IdentityFoundationTest {
     }
 
     private static ActorContext.Authority authority(CurrentMembership membership) {
-        return new ActorContext.Authority((issuer, subject, workspaceId) -> Optional.of(membership));
+        return new ActorContext.Authority(
+                new com.knowimran.rivoquery.identity.application.SingleMembershipRepository(membership));
     }
 }

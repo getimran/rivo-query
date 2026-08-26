@@ -101,6 +101,29 @@ public class JdbcConnectionPermissionRepository implements ConnectionPermissionR
         return true;
     }
 
+    /**
+     * Fixed post-review (S2): the original implementation had two defects.
+     * (1) It had no {@code expectedCollectionVersion == 0} branch (unlike
+     * {@link #casCollectionVersion}'s replace path): a connection with no
+     * permission-collection row yet has an implicit version of {@code 0}
+     * (see this class's own Javadoc), so the documented flow (GET returns
+     * ETag {@code "0"} for an empty collection -> DELETE with {@code
+     * If-Match: "0"}) always 412'd against the server's own just-issued
+     * ETag, because the bare {@code UPDATE} below matches zero rows when the
+     * collection doesn't exist. (2) It bumped the collection version (and
+     * therefore invalidated every other client's ETag) even when the target
+     * membership had no grant to revoke, with no existence check.
+     *
+     * <p>Fixed by treating "does the current collection version match, and
+     * does {@code membershipId} actually have a grant" as two independent
+     * questions: a version mismatch is always a precondition failure
+     * (whether or not a collection row physically exists yet); a version
+     * match with no existing grant is a no-op success (matches, returns
+     * {@code true}, but never bumps the version or deletes anything - a
+     * revoke of something already absent should not invalidate other
+     * clients' ETags); only a version match *and* an existing grant performs
+     * the real CAS bump + delete.
+     */
     @Override
     @Transactional
     public boolean revoke(
@@ -112,6 +135,15 @@ public class JdbcConnectionPermissionRepository implements ConnectionPermissionR
         Objects.requireNonNull(connectionId, "connectionId");
         Objects.requireNonNull(membershipId, "membershipId");
 
+        if (currentCollectionVersion(workspaceId, connectionId) != expectedCollectionVersion) {
+            return false;
+        }
+        if (find(workspaceId, connectionId, membershipId).isEmpty()) {
+            // Nothing to revoke: a no-op success that leaves the collection
+            // version (and every other client's ETag) untouched.
+            return true;
+        }
+
         int updated = jdbcTemplate.update(
                 """
                 UPDATE connection_permission_collections
@@ -120,6 +152,8 @@ public class JdbcConnectionPermissionRepository implements ConnectionPermissionR
                 """,
                 workspaceId.value(), connectionId.value(), expectedCollectionVersion);
         if (updated != 1) {
+            // Lost a race against a concurrent writer between the checks
+            // above and this CAS update.
             return false;
         }
         jdbcTemplate.update(
@@ -149,6 +183,50 @@ public class JdbcConnectionPermissionRepository implements ConnectionPermissionR
                 """,
                 next, workspaceId.value(), connectionId.value(), expected);
         return updated == 1;
+    }
+
+    private static final String FIND_PAGE_QUERY = """
+            SELECT g.membership_id, g.permissions, coll.collection_version
+            FROM connection_permission_grants g
+            JOIN connection_permission_collections coll
+                 ON coll.workspace_id = g.workspace_id AND coll.connection_id = g.connection_id
+            WHERE g.workspace_id = ? AND g.connection_id = ? AND g.membership_id > ?
+            ORDER BY g.membership_id
+            LIMIT ?
+            """;
+
+    @Override
+    public List<ConnectionPermissionGrant> findPage(
+            WorkspaceId workspaceId, ConnectionId connectionId,
+            Optional<MembershipId> afterMembershipId, int limit) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(connectionId, "connectionId");
+        Objects.requireNonNull(afterMembershipId, "afterMembershipId");
+        if (limit < 1) {
+            throw new IllegalArgumentException("limit must be positive");
+        }
+        String after = afterMembershipId.map(MembershipId::value).orElse("");
+        return jdbcTemplate.query(
+                FIND_PAGE_QUERY,
+                (resultSet, rowNumber) -> new ConnectionPermissionGrant(
+                        workspaceId,
+                        connectionId,
+                        new MembershipId(resultSet.getString("membership_id")),
+                        toPermissionSet(resultSet.getArray("permissions")),
+                        resultSet.getLong("collection_version")),
+                workspaceId.value(), connectionId.value(), after, limit);
+    }
+
+    @Override
+    public long currentCollectionVersion(WorkspaceId workspaceId, ConnectionId connectionId) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(connectionId, "connectionId");
+        List<Long> rows = jdbcTemplate.query(
+                "SELECT collection_version FROM connection_permission_collections "
+                        + "WHERE workspace_id = ? AND connection_id = ?",
+                (resultSet, rowNumber) -> resultSet.getLong("collection_version"),
+                workspaceId.value(), connectionId.value());
+        return rows.stream().findFirst().orElse(0L);
     }
 
     private static String[] toPermissionNames(Set<GrantablePermission> permissions) {

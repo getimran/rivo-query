@@ -42,6 +42,7 @@ import com.knowimran.rivoquery.identity.MembershipId;
 import com.knowimran.rivoquery.identity.MembershipStatus;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import com.knowimran.rivoquery.identity.WorkspaceRole;
+import com.knowimran.rivoquery.identity.application.SingleMembershipRepository;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,14 +59,14 @@ final class LifecycleTestFixtures {
         var membership = new CurrentMembership(
                 actorId, workspaceId, new MembershipId("mem_" + actorId.value().substring(4)),
                 WorkspaceRole.ADMINISTRATOR, MembershipStatus.ACTIVE);
-        return new ActorContext.Authority((issuer, subject, workspace) -> Optional.of(membership))
+        return new ActorContext.Authority(new SingleMembershipRepository(membership))
                 .resolve("issuer", "subject", workspaceId);
     }
 
     static ActorContext member(WorkspaceId workspaceId, ActorId actorId, MembershipId membershipId) {
         var membership = new CurrentMembership(
                 actorId, workspaceId, membershipId, WorkspaceRole.MEMBER, MembershipStatus.ACTIVE);
-        return new ActorContext.Authority((issuer, subject, workspace) -> Optional.of(membership))
+        return new ActorContext.Authority(new SingleMembershipRepository(membership))
                 .resolve("issuer", "subject", workspaceId);
     }
 
@@ -345,6 +346,28 @@ final class LifecycleTestFixtures {
         @Override
         public boolean revoke(WorkspaceId workspaceId, ConnectionId connectionId, MembershipId membershipId, long expectedCollectionVersion) {
             return grants.remove(key(workspaceId, connectionId, membershipId)) != null;
+        }
+
+        @Override
+        public java.util.List<com.knowimran.rivoquery.connection.ConnectionPermissionGrant> findPage(
+                WorkspaceId workspaceId, ConnectionId connectionId,
+                Optional<MembershipId> afterMembershipId, int limit) {
+            String after = afterMembershipId.map(MembershipId::value).orElse("");
+            return grants.values().stream()
+                    .filter(grant -> grant.workspaceId().equals(workspaceId) && grant.connectionId().equals(connectionId))
+                    .filter(grant -> grant.membershipId().value().compareTo(after) > 0)
+                    .sorted(java.util.Comparator.comparing(grant -> grant.membershipId().value()))
+                    .limit(limit)
+                    .toList();
+        }
+
+        @Override
+        public long currentCollectionVersion(WorkspaceId workspaceId, ConnectionId connectionId) {
+            return grants.values().stream()
+                    .filter(grant -> grant.workspaceId().equals(workspaceId) && grant.connectionId().equals(connectionId))
+                    .mapToLong(com.knowimran.rivoquery.connection.ConnectionPermissionGrant::version)
+                    .max()
+                    .orElse(0L);
         }
     }
 }
