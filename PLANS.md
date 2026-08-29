@@ -118,6 +118,41 @@ and safe synthetic-configuration audit. Remaining before `CP-2` closeout: P2-150
 (QA matrix), P2-190/200 (final verification + closeout PR). GitHub Actions
 remains deferred to final deployment readiness.
 
+Repository gate update (2026-08-29): CP-2 PR #15 passed the complete local gate
+and merged to `main` as `06e59b5`. Local `main` was fast-forwarded to that exact
+commit, no pull request remains open, and Phase 3 is active on
+`feat/phase-3-schema-discovery`. Product, catalog-authorization, and worker-fencing
+decisions are the only active Phase 3 work until their review gate passes.
+GitHub Actions remains deferred to final deployment readiness.
+
+Phase 3 entry-gate update (2026-08-29): the product owner and technical design
+gates are independently approved. P3-010 design work is active.
+
+P3-010 design update (2026-08-29): `docs/design/catalog-authorization-and-worker.md`
+is approved. It freezes catalog authorization order, raw/canonical
+qualified-identifier rules, immutable snapshot persistence, worker claim/lease/
+fencing/retry/idempotency/crash-recovery/cleanup/shutdown semantics, bounded
+deterministic selection scoring, and security considerations. P3-020 contract
+work is active.
+
+P3-020 contract update (2026-08-29): added schema refresh/status/object browsing
+endpoints to `apps/api/src/main/resources/openapi/rivoquery-v1.yaml` and
+regenerated the `SchemaApi` client. New schemas: `SchemaObjectType`,
+`ColumnTypeFamily`, `ColumnClassification`, `SchemaColumn`, `SchemaObject`,
+`SchemaSnapshot`, `SchemaPage`, and `SchemaStatus`. OpenAPI validation passes;
+generated Java interfaces compile cleanly. P3-030 implementation is active.
+
+P3-030 implementation update (2026-08-29): implemented the catalog domain model,
+canonicalization, system denylist, snapshot fingerprinting, and refresh
+orchestration service under `apps/api/src/main/java/com/knowimran/rivoquery/catalog/`.
+New types: `CatalogObjectId`, `RawQualifiedName`, `CanonicalQualifiedName`,
+`SchemaObjectType`, `ColumnTypeFamily`, `ColumnClassification`, `SchemaColumn`,
+`SchemaObject`, `SchemaFingerprint`, `SchemaSnapshot`, `SchemaObjectPage`,
+`SchemaStatus`, `SystemObjectDenylist`, `CanonicalizationService`,
+`SchemaRefreshService`. Ports: `CatalogRepository`, `SchemaDiscoveryPort`,
+`SchemaSelectorPort`. 17 new tests pass; full suite is 597 green. P3-040/050/060
+migration, persistence, and connector discovery remain.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.
