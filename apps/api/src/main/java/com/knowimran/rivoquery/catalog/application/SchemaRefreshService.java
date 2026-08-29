@@ -18,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 public class SchemaRefreshService {
     private final CatalogRepository catalogRepository;
@@ -28,6 +29,7 @@ public class SchemaRefreshService {
         this.discoveryPort = Objects.requireNonNull(discoveryPort, "discoveryPort");
     }
 
+    @Transactional
     public SchemaSnapshot refresh(WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
@@ -77,6 +79,7 @@ public class SchemaRefreshService {
             normalized.size(),
             normalized
         );
+        catalogRepository.insert(snapshot);
         catalogRepository.installCurrentSnapshot(workspaceId, connectionId, snapshot);
         return snapshot;
     }
