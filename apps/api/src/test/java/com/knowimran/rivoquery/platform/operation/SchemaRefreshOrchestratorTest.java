@@ -1,40 +1,119 @@
 package com.knowimran.rivoquery.platform.operation;
 
 import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
+import com.knowimran.rivoquery.catalog.SchemaSnapshot;
 import com.knowimran.rivoquery.catalog.application.CatalogRepository;
 import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshConnectionFactory;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshService;
 import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort.DiscoveryException;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.identity.ActorContext;
+import com.knowimran.rivoquery.identity.ActorId;
+import com.knowimran.rivoquery.identity.CurrentMembership;
+import com.knowimran.rivoquery.identity.MembershipId;
+import com.knowimran.rivoquery.identity.MembershipStatus;
 import com.knowimran.rivoquery.identity.WorkspaceId;
+import com.knowimran.rivoquery.identity.WorkspaceRole;
+import com.knowimran.rivoquery.identity.application.SingleMembershipRepository;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Connection;
+import java.sql.*;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SchemaRefreshOrchestratorTest {
+    private static ActorContext actor() {
+        var membership = new CurrentMembership(
+                new ActorId("act_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
+                new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
+                new MembershipId("mem_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
+                WorkspaceRole.ADMINISTRATOR,
+                MembershipStatus.ACTIVE);
+        return new ActorContext.Authority(new SingleMembershipRepository(membership))
+                .resolve("issuer", "subject", new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"));
+    }
+
     @Test
     void refreshSchemaOrchestratesClaimAndCompletion() throws DiscoveryException {
         FakeOperationRepository opRepo = new FakeOperationRepository();
-        FakeRefreshService refreshService = new FakeRefreshService();
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(opRepo, Instant::now, "worker-1");
         CatalogRepository catalogRepository = new CatalogRepository() {
+            @Override
+            public Optional<SchemaSnapshot> findCurrentSnapshot(WorkspaceId workspaceId, ConnectionId connectionId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<SchemaSnapshot> findSnapshot(WorkspaceId workspaceId, ConnectionId connectionId, com.knowimran.rivoquery.catalog.CatalogObjectId snapshotId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public void insert(com.knowimran.rivoquery.catalog.SchemaSnapshot snapshot) {
+            }
+
+            @Override
+            public void installCurrentSnapshot(WorkspaceId workspaceId, ConnectionId connectionId, com.knowimran.rivoquery.catalog.SchemaSnapshot snapshot) {
+            }
+
+            @Override
+            public com.knowimran.rivoquery.catalog.SchemaStatus findStatus(WorkspaceId workspaceId, ConnectionId connectionId) {
+                return null;
+            }
+
+            @Override
+            public com.knowimran.rivoquery.catalog.SchemaObjectPage findObjects(WorkspaceId workspaceId, ConnectionId connectionId, String cursor, int limit) {
+                return null;
+            }
+        };
+        SchemaDiscoveryPort discoveryPort = new SchemaDiscoveryPort() {
+            @Override
+            public com.knowimran.rivoquery.connection.DatabaseKind kind() {
+                return null;
+            }
+
+            @Override
+            public SchemaSnapshot discover(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
+                return null;
+            }
+        };
+        com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator idGenerator = new com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator() {
+            @Override
+            public com.knowimran.rivoquery.connection.ConnectionId newConnectionId() {
+                return null;
+            }
+
+            @Override
+            public com.knowimran.rivoquery.connection.OperationId newOperationId() {
+                return null;
+            }
+
+            @Override
+            public String newSnapshotId() {
+                return null;
+            }
+        };
+        FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator);
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(opRepo, Clock.systemUTC(), "worker-1");
+        SchemaRefreshConnectionFactory connectionFactory = new SchemaRefreshConnectionFactory() {
+            @Override
+            public Connection open(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SQLException {
+                return new NoOpConnection();
+            }
         };
         SchemaRefreshOrchestrator orchestrator = new SchemaRefreshOrchestrator(
-                worker, refreshService, catalogRepository, opRepo, Instant::now
+                worker, refreshService, catalogRepository, opRepo, connectionFactory, Clock.systemUTC()
         );
         orchestrator.refreshSchema(
-                new NoOpConnection(),
-                new ActorContext(new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), "actor-1", java.util.Set.of()),
+                actor(),
                 new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
                 new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX")
         );
@@ -45,21 +124,75 @@ class SchemaRefreshOrchestratorTest {
     @Test
     void refreshSchemaMarksFailedWhenServiceThrows() {
         FakeOperationRepository opRepo = new FakeOperationRepository();
-        FakeRefreshService refreshService = new FakeRefreshService() {
+        CatalogRepository catalogRepository = new CatalogRepository() {
             @Override
-            public void refresh(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws DiscoveryException {
-                throw new DiscoveryException("simulated failure");
+            public Optional<SchemaSnapshot> findCurrentSnapshot(WorkspaceId workspaceId, ConnectionId connectionId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<SchemaSnapshot> findSnapshot(WorkspaceId workspaceId, ConnectionId connectionId, com.knowimran.rivoquery.catalog.CatalogObjectId snapshotId) {
+                return Optional.empty();
+            }
+
+            @Override
+            public void insert(com.knowimran.rivoquery.catalog.SchemaSnapshot snapshot) {
+            }
+
+            @Override
+            public void installCurrentSnapshot(WorkspaceId workspaceId, ConnectionId connectionId, com.knowimran.rivoquery.catalog.SchemaSnapshot snapshot) {
+            }
+
+            @Override
+            public com.knowimran.rivoquery.catalog.SchemaStatus findStatus(WorkspaceId workspaceId, ConnectionId connectionId) {
+                return null;
+            }
+
+            @Override
+            public com.knowimran.rivoquery.catalog.SchemaObjectPage findObjects(WorkspaceId workspaceId, ConnectionId connectionId, String cursor, int limit) {
+                return null;
             }
         };
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(opRepo, Instant::now, "worker-1");
-        CatalogRepository catalogRepository = new CatalogRepository() {
+        SchemaDiscoveryPort discoveryPort = new SchemaDiscoveryPort() {
+            @Override
+            public com.knowimran.rivoquery.connection.DatabaseKind kind() {
+                return null;
+            }
+
+            @Override
+            public SchemaSnapshot discover(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
+                throw new SchemaDiscoveryPort.DiscoveryException("simulated failure");
+            }
+        };
+        com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator idGenerator = new com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator() {
+            @Override
+            public com.knowimran.rivoquery.connection.ConnectionId newConnectionId() {
+                return null;
+            }
+
+            @Override
+            public com.knowimran.rivoquery.connection.OperationId newOperationId() {
+                return null;
+            }
+
+            @Override
+            public String newSnapshotId() {
+                return null;
+            }
+        };
+        FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator);
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(opRepo, Clock.systemUTC(), "worker-1");
+        SchemaRefreshConnectionFactory connectionFactory = new SchemaRefreshConnectionFactory() {
+            @Override
+            public Connection open(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SQLException {
+                return new NoOpConnection();
+            }
         };
         SchemaRefreshOrchestrator orchestrator = new SchemaRefreshOrchestrator(
-                worker, refreshService, catalogRepository, opRepo, Instant::now
+                worker, refreshService, catalogRepository, opRepo, connectionFactory, Clock.systemUTC()
         );
         assertThatThrownBy(() -> orchestrator.refreshSchema(
-                new NoOpConnection(),
-                new ActorContext(new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), "actor-1", java.util.Set.of()),
+                actor(),
                 new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
                 new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX")
         )).isInstanceOf(DiscoveryException.class);
@@ -81,6 +214,27 @@ class SchemaRefreshOrchestratorTest {
 
         @Override
         public int updateState(String operationId, String state) {
+            for (int i = 0; i < operations.size(); i++) {
+                SchemaRefreshOperation op = operations.get(i);
+                if (op.operationId().equals(operationId)) {
+                    operations.set(i, new SchemaRefreshOperation(
+                            op.operationId(),
+                            op.workspaceId(),
+                            op.connectionId(),
+                            state,
+                            op.claimedBy(),
+                            op.claimedAt(),
+                            op.leaseExpiresAt(),
+                            op.fencingToken(),
+                            op.attempt(),
+                            op.maxAttempts(),
+                            op.retryBackoffMs(),
+                            op.createdAt(),
+                            op.updatedAt()
+                    ));
+                    return 1;
+                }
+            }
             return 0;
         }
 
@@ -132,12 +286,13 @@ class SchemaRefreshOrchestratorTest {
     }
 
     private static class FakeRefreshService extends SchemaRefreshService {
-        public FakeRefreshService() {
-            super(null, null, null);
+        public FakeRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort, com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator idGenerator) {
+            super(catalogRepository, discoveryPort, idGenerator);
         }
 
         @Override
-        public void refresh(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws DiscoveryException {
+        public SchemaSnapshot refresh(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws DiscoveryException {
+            return null;
         }
     }
 
@@ -340,7 +495,7 @@ class SchemaRefreshOrchestratorTest {
         }
 
         @Override
-        public void setClientInfo(java.util.Properties properties) throws java.sql.SQLClientInfoException {
+        public void setClientInfo(Properties properties) throws java.sql.SQLClientInfoException {
         }
 
         @Override
@@ -349,7 +504,7 @@ class SchemaRefreshOrchestratorTest {
         }
 
         @Override
-        public java.util.Properties getClientInfo() throws java.sql.SQLException {
+        public Properties getClientInfo() throws java.sql.SQLException {
             return null;
         }
 

@@ -264,9 +264,11 @@ public class JdbcCatalogRepository implements CatalogRepository {
     private void insertObjects(String snapshotId, List<SchemaObject> objects) {
         for (int objectIndex = 0; objectIndex < objects.size(); objectIndex++) {
             SchemaObject object = objects.get(objectIndex);
+            String currentSnapshotId = snapshotId;
+            int currentObjectIndex = objectIndex;
             jdbcTemplate.update(INSERT_OBJECT, ps -> {
-                ps.setString(1, snapshotId);
-                ps.setInt(2, objectIndex);
+                ps.setString(1, currentSnapshotId);
+                ps.setInt(2, currentObjectIndex);
                 ps.setString(3, object.rawName().schema());
                 ps.setString(4, object.rawName().object());
                 ps.setString(5, object.canonicalName().schema());
@@ -285,10 +287,12 @@ public class JdbcCatalogRepository implements CatalogRepository {
             List<SchemaColumn> columns = object.columns();
             for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
                 SchemaColumn column = columns.get(columnIndex);
+                int currentObjectIndex = objectIndex;
+                int currentColumnIndex = columnIndex;
                 jdbcTemplate.update(INSERT_COLUMN, ps -> {
                     ps.setString(1, snapshotId);
-                    ps.setInt(2, objectIndex);
-                    ps.setInt(3, columnIndex);
+                    ps.setInt(2, currentObjectIndex);
+                    ps.setInt(3, currentColumnIndex);
                     ps.setString(4, column.name());
                     ps.setString(5, column.type().name());
                     ps.setBoolean(6, column.nullable());

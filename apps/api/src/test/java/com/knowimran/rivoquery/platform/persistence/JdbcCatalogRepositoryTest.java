@@ -9,8 +9,14 @@ import com.knowimran.rivoquery.identity.WorkspaceId;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.time.Instant;
+import javax.sql.DataSource;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,7 +36,7 @@ class JdbcCatalogRepositoryTest {
             new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
             new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
             new SchemaFingerprint("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-            Instant.parse("2026-01-01T00:00:00Z"),
+            java.time.Instant.parse("2026-01-01T00:00:00Z"),
             0,
             List.of()
         );
@@ -45,7 +51,7 @@ class JdbcCatalogRepositoryTest {
 
     @Test
     void findCurrentSnapshotRejectsNullArguments() {
-        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(null));
+        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(dummyDataSource()));
         assertThatThrownBy(() -> repository.findCurrentSnapshot(null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX")))
             .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> repository.findCurrentSnapshot(new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), null))
@@ -54,27 +60,27 @@ class JdbcCatalogRepositoryTest {
 
     @Test
     void findSnapshotRejectsNullArguments() {
-        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(null));
-        assertThatThrownBy(() -> repository.findSnapshot(null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), new CatalogObjectId("obj_1")))
+        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(dummyDataSource()));
+        assertThatThrownBy(() -> repository.findSnapshot(null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), new CatalogObjectId("obj_01J6MZ4H9ST5N7YQ2C8W3V0KFX")))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void insertRejectsNullSnapshot() {
-        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(null));
+        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(dummyDataSource()));
         assertThatThrownBy(() -> repository.insert(null))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void installCurrentSnapshotRejectsNullArguments() {
-        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(null));
+        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(dummyDataSource()));
         assertThatThrownBy(() -> repository.installCurrentSnapshot(null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), new SchemaSnapshot(
             "snap_1",
             new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
             new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
             new SchemaFingerprint("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-            Instant.now(),
+            java.time.Instant.now(),
             0,
             List.of()
         )))
@@ -83,17 +89,64 @@ class JdbcCatalogRepositoryTest {
 
     @Test
     void findStatusRejectsNullArguments() {
-        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(null));
+        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(dummyDataSource()));
         assertThatThrownBy(() -> repository.findStatus(null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX")))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void findObjectsRejectsNullArguments() {
-        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(null));
+        JdbcCatalogRepository repository = new JdbcCatalogRepository(new JdbcTemplate(dummyDataSource()));
         assertThatThrownBy(() -> repository.findObjects(null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), "0", 10))
             .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(() -> repository.findObjects(new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), null, "0", 10))
             .isInstanceOf(NullPointerException.class);
+    }
+
+    private static DataSource dummyDataSource() {
+        return new DataSource() {
+            @Override
+            public Connection getConnection() throws SQLException {
+                return null;
+            }
+
+            @Override
+            public Connection getConnection(String username, String password) throws SQLException {
+                return null;
+            }
+
+            @Override
+            public PrintWriter getLogWriter() throws SQLException {
+                return null;
+            }
+
+            @Override
+            public void setLogWriter(PrintWriter out) throws SQLException {
+            }
+
+            @Override
+            public void setLoginTimeout(int seconds) throws SQLException {
+            }
+
+            @Override
+            public int getLoginTimeout() throws SQLException {
+                return 0;
+            }
+
+            @Override
+            public Logger getParentLogger() {
+                return null;
+            }
+
+            @Override
+            public <T> T unwrap(Class<T> iface) {
+                return null;
+            }
+
+            @Override
+            public boolean isWrapperFor(Class<?> iface) {
+                return false;
+            }
+        };
     }
 }

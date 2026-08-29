@@ -1,7 +1,7 @@
 package com.knowimran.rivoquery.platform.operation;
 
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
-import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperation;
+import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;

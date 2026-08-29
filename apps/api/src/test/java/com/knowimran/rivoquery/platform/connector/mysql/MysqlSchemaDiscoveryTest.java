@@ -6,7 +6,7 @@ import com.knowimran.rivoquery.connection.DatabaseKind;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Connection;
+import java.sql.*;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -6,6 +6,7 @@ import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +34,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now(),
                 Instant.now()
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         boolean claimed = worker.claim("op_1");
         assertThat(claimed).isTrue();
         assertThat(repo.operations.get(0).state()).isEqualTo("RUNNING");
@@ -59,7 +60,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now(),
                 Instant.now()
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         boolean claimed = worker.claim("op_1");
         assertThat(claimed).isFalse();
     }
@@ -82,7 +83,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now(),
                 Instant.now()
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         worker.complete("op_1");
         assertThat(repo.operations.get(0).state()).isEqualTo("SUCCEEDED");
     }
@@ -105,7 +106,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now(),
                 Instant.now()
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         worker.fail("op_1");
         assertThat(repo.operations.get(0).state()).isEqualTo("FAILED");
         worker.retry("op_1");
@@ -132,7 +133,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now(),
                 Instant.now()
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         worker.release("op_1");
         assertThat(repo.operations.get(0).state()).isEqualTo("PENDING");
     }
@@ -155,7 +156,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now().minusSeconds(120),
                 Instant.now().minusSeconds(120)
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         worker.recoverExpiredLeases();
         assertThat(repo.operations.get(0).state()).isEqualTo("PENDING");
     }
@@ -178,7 +179,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now().minusSeconds(120),
                 Instant.now().minusSeconds(120)
         ));
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Instant::now, "worker-1");
+        SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
         List<SchemaRefreshOperation> pending = worker.findPending("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX");
         assertThat(pending).hasSize(1);
         assertThat(pending.get(0).operationId()).isEqualTo("op_1");
@@ -255,7 +256,7 @@ class SchemaRefreshWorkerTest {
         }
 
         @Override
-        public int retry(String operationId, int newAttempt, int newRetryBackoffMs) {
+        public int retry(String operationId, int newAttempt, int newRetryBackoffMs, long expectedFencingToken) {
             for (int i = 0; i < operations.size(); i++) {
                 SchemaRefreshOperation op = operations.get(i);
                 if (op.operationId().equals(operationId)) {

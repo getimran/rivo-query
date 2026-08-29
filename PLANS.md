@@ -196,8 +196,34 @@ fingerprints regardless of refresh timestamp. `SchemaRefreshService` now uses
 `CanonicalIdGenerator` for unique snapshot IDs instead of a deterministic
 workspace/connection-derived ID, preventing primary-key collisions on repeated
 refreshes. Value-based orchestrator tests cover success and failure paths.
-Commit `d9d8e4c` on `feat/phase-3-catalog-persistence`. P3-090 relevance
-selection and P3-100 REST endpoints remain.
+Commit `d9d8e4c` on `feat/phase-3-catalog-persistence`.
+
+P3-090 relevance selection update (2026-08-29): implemented
+`SchemaSelectorService` under `catalog/application/` with deterministic
+lexical scoring over canonical qualified names and descriptions. Scoring is
+stable: exact name matches score 100, canonical-name token overlap scores up
+to 80, description token overlap scores up to 60, and ties break by
+lexicographic canonical qualified name. Budgets enforce max tables, max
+columns per table, max total columns, max hops, and max tokens. System
+objects are excluded. Versioned synthetic recall fixtures are added under
+`evals/schema-selection/recall-fixtures.json` with five cases covering exact
+match, description overlap, system exclusion, table budget, and stable-tie
+ordering. Baseline recall on the synthetic fixtures is 100% (5/5). Known
+limitation: foreign-key expansion is not yet active because `SchemaObject`
+does not currently carry relationship metadata; connector discovery in
+P3-050/060 did not enumerate FKs, so FK expansion requires a follow-on
+domain-model and connector change. Commit on `feat/phase-3-catalog-persistence`.
+
+P3-100 REST endpoints update (2026-08-29): implemented schema status,
+object browsing, and refresh endpoints under `interfaceapi/schema/`.
+`SchemaController` implements the generated `SchemaApi` with administrator-only
+refresh, workspace-scoped status/object queries, idempotent refresh with
+operation replay, and RFC 9457 problem mapping. New application services
+`SchemaQueryService` and `SchemaRefreshRequestService` delegate to the
+orchestrator. `SchemaRefreshConnectionFactory` opens JDBC connections through
+`SecretOperations` using the existing connector dialects. `SchemaWiringConfiguration`
+wires all catalog/schema beans. Value-based controller and service tests cover
+success and failure paths. Commit on `feat/phase-3-catalog-persistence`.
 
 ## Phase 1 — Repository and backend bootstrap
 

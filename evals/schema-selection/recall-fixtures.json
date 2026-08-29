@@ -1,0 +1,41 @@
+{
+  "version": "1",
+  "generatedAt": "2026-08-29",
+  "cases": [
+    {
+      "id": "exact-name-match",
+      "question": "Show me all customers",
+      "candidates": ["public.customers", "public.orders"],
+      "maxTables": 1,
+      "expectedTables": ["public.customers"]
+    },
+    {
+      "id": "description-overlap",
+      "question": "List customer orders",
+      "candidates": ["public.orders", "public.customers"],
+      "maxTables": 1,
+      "expectedTables": ["public.orders"]
+    },
+    {
+      "id": "system-exclusion",
+      "question": "Show system tables",
+      "candidates": ["pg_catalog.pg_class", "public.customers"],
+      "maxTables": 10,
+      "expectedTables": ["public.customers"]
+    },
+    {
+      "id": "budget-max-tables",
+      "question": "Show tables",
+      "candidates": ["public.t1", "public.t2", "public.t3"],
+      "maxTables": 2,
+      "expectedTables": ["public.t1", "public.t2"]
+    },
+    {
+      "id": "stable-ties",
+      "question": "Show tables",
+      "candidates": ["public.b_table", "public.a_table"],
+      "maxTables": 10,
+      "expectedTables": ["public.a_table", "public.b_table"]
+    }
+  ]
+}
