@@ -10,6 +10,7 @@ import com.knowimran.rivoquery.catalog.SchemaFingerprint;
 import com.knowimran.rivoquery.catalog.SchemaObject;
 import com.knowimran.rivoquery.catalog.SchemaObjectType;
 import com.knowimran.rivoquery.catalog.SchemaSnapshot;
+import com.knowimran.rivoquery.catalog.SystemObjectDenylist;
 import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
@@ -51,6 +52,10 @@ public class MysqlSchemaDiscovery implements SchemaDiscoveryPort {
                     String table = tables.getString("TABLE_NAME");
                     String tableType = tables.getString("TABLE_TYPE");
                     if (!allowedSchemas.contains(schema)) {
+                        continue;
+                    }
+                    String canonicalSchema = CanonicalQualifiedName.normalize(schema);
+                    if (SystemObjectDenylist.isSystemSchema(DatabaseKind.MYSQL, canonicalSchema)) {
                         continue;
                     }
                     SchemaObjectType type = switch (tableType) {

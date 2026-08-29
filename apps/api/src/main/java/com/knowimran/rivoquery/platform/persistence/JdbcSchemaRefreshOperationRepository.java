@@ -40,6 +40,67 @@ public class JdbcSchemaRefreshOperationRepository implements SchemaRefreshOperat
             WHERE operation_id = ?
             """;
 
+    private static final String CLAIM = """
+            UPDATE schema_refresh_operations
+            SET state = 'RUNNING',
+                claimed_by = ?,
+                claimed_at = now(),
+                lease_expires_at = ?,
+                fencing_token = ?,
+                attempt = attempt + 1,
+                updated_at = now()
+            WHERE operation_id = ?
+              AND state = 'PENDING'
+              AND (lease_expires_at IS NULL OR lease_expires_at < now())
+              AND fencing_token = ?
+            """;
+
+    private static final String RENEW_LEASE = """
+            UPDATE schema_refresh_operations
+            SET lease_expires_at = ?, updated_at = now()
+            WHERE operation_id = ?
+              AND state = 'RUNNING'
+              AND fencing_token = ?
+            """;
+
+    private static final String RETRY = """
+            UPDATE schema_refresh_operations
+            SET state = 'PENDING',
+                claimed_by = NULL,
+                claimed_at = NULL,
+                lease_expires_at = NULL,
+                fencing_token = fencing_token + 1,
+                attempt = ?,
+                retry_backoff_ms = ?,
+                updated_at = now()
+            WHERE operation_id = ?
+              AND state = 'FAILED'
+              AND fencing_token = ?
+            """;
+
+    private static final String FIND_PENDING = """
+            SELECT operation_id, workspace_id, connection_id, state, claimed_by,
+                   claimed_at, lease_expires_at, fencing_token, attempt, max_attempts,
+                   retry_backoff_ms, created_at, updated_at
+            FROM schema_refresh_operations
+            WHERE connection_id = ?
+              AND state = 'PENDING'
+              AND (lease_expires_at IS NULL OR lease_expires_at < ?)
+            ORDER BY created_at
+            LIMIT ?
+            """;
+
+    private static final String RESET_EXPIRED_RUNNING = """
+            UPDATE schema_refresh_operations
+            SET state = 'PENDING',
+                claimed_by = NULL,
+                claimed_at = NULL,
+                lease_expires_at = NULL,
+                updated_at = now()
+            WHERE state = 'RUNNING'
+              AND lease_expires_at < ?
+            """;
+
     private static final RowMapper<SchemaRefreshOperation> ROW_MAPPER = (ResultSet rs, int rowNum) -> {
         return new SchemaRefreshOperation(
                 rs.getString("operation_id"),
@@ -96,5 +157,39 @@ public class JdbcSchemaRefreshOperationRepository implements SchemaRefreshOperat
         Objects.requireNonNull(operationId, "operationId");
         Objects.requireNonNull(state, "state");
         return jdbcTemplate.update(UPDATE_STATE, state, operationId);
+    }
+
+    @Override
+    public int claim(String operationId, String claimedBy, Instant leaseExpiresAt, long expectedFencingToken, long newFencingToken) {
+        Objects.requireNonNull(operationId, "operationId");
+        Objects.requireNonNull(claimedBy, "claimedBy");
+        Objects.requireNonNull(leaseExpiresAt, "leaseExpiresAt");
+        return jdbcTemplate.update(CLAIM, claimedBy, Timestamp.from(leaseExpiresAt), newFencingToken, operationId, expectedFencingToken);
+    }
+
+    @Override
+    public int renewLease(String operationId, Instant newLeaseExpiresAt) {
+        Objects.requireNonNull(operationId, "operationId");
+        Objects.requireNonNull(newLeaseExpiresAt, "newLeaseExpiresAt");
+        return jdbcTemplate.update(RENEW_LEASE, Timestamp.from(newLeaseExpiresAt), operationId);
+    }
+
+    @Override
+    public int retry(String operationId, int newAttempt, int newRetryBackoffMs, long expectedFencingToken) {
+        Objects.requireNonNull(operationId, "operationId");
+        return jdbcTemplate.update(RETRY, newAttempt, newRetryBackoffMs, operationId, expectedFencingToken);
+    }
+
+    @Override
+    public List<SchemaRefreshOperation> findPending(String connectionId, Instant before) {
+        Objects.requireNonNull(connectionId, "connectionId");
+        Objects.requireNonNull(before, "before");
+        return jdbcTemplate.query(FIND_PENDING, ROW_MAPPER, connectionId, Timestamp.from(before));
+    }
+
+    @Override
+    public int resetExpiredRunning(Instant now) {
+        Objects.requireNonNull(now, "now");
+        return jdbcTemplate.update(RESET_EXPIRED_RUNNING, Timestamp.from(now));
     }
 }
