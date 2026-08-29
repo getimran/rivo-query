@@ -11,6 +11,7 @@ tags:
   - name: Health
   - name: Workspaces
   - name: Connections
+  - name: Schema
   - name: Connection permissions
   - name: Operations
 paths:
@@ -654,6 +655,120 @@ paths:
           $ref: '#/components/responses/PreconditionFailed'
         '428':
           $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections/{connectionId}/schema/refresh:
+    post:
+      tags: [Schema]
+      operationId: refreshSchema
+      summary: Trigger a durable schema refresh for the connection
+      description: >-
+        Requires effective `VIEW_SCHEMA`. Returns a durable operation that
+        performs discovery, normalization, and snapshot installation. An exact
+        idempotent replay returns the existing operation.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          $ref: '#/components/responses/OperationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections/{connectionId}/schema/status:
+    get:
+      tags: [Schema]
+      operationId: getSchemaStatus
+      summary: Get current schema snapshot metadata
+      description: >-
+        Requires effective `VIEW_SCHEMA`. Returns the current snapshot status
+        without object details.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ConnectionId'
+      responses:
+        '200':
+          description: Current schema snapshot status.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaStatus'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/connections/{connectionId}/schema/objects:
+    get:
+      tags: [Schema]
+      operationId: listSchemaObjects
+      summary: Browse authorized schema objects
+      description: >-
+        Requires effective `VIEW_SCHEMA`. Returns a bounded cursor page of
+        permitted non-system objects from the current snapshot. Raw identifiers
+        are never used for authorization.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/ConnectionId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A bounded page of authorized schema objects.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '500':
@@ -1373,10 +1488,132 @@ components:
       type: string
       enum:
         [CONNECTION_CREATE, CONNECTION_UPDATE, CONNECTION_DELETE, CONNECTION_TEST,
-         CONNECTION_ROTATE_SECRET]
+         CONNECTION_ROTATE_SECRET, SCHEMA_REFRESH]
     OperationState:
       type: string
       enum: [PENDING, RUNNING, SUCCEEDED, FAILED, INDETERMINATE]
+    SchemaObjectType:
+      type: string
+      enum: [TABLE, VIEW, MATERIALIZED_VIEW, FUNCTION, PROCEDURE, SEQUENCE]
+    ColumnTypeFamily:
+      type: string
+      enum: [STRING, NUMERIC, TIMESTAMP, BOOLEAN, BINARY, JSON, OTHER]
+    ColumnClassification:
+      type: string
+      enum: [NONE, PII, SECRET, DERIVED]
+    SchemaColumn:
+      type: object
+      additionalProperties: false
+      required: [name, type, nullable]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+        type:
+          $ref: '#/components/schemas/ColumnTypeFamily'
+        nullable:
+          type: boolean
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Sanitized comment text treated as untrusted data.
+        classification:
+          $ref: '#/components/schemas/ColumnClassification'
+    SchemaObject:
+      type: object
+      additionalProperties: false
+      required: [rawName, canonicalName, type, isSystem]
+      properties:
+        rawName:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Vendor-specific raw qualified name, for display only.
+        canonicalName:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Normalized qualified name used for allowlist and selection.
+        type:
+          $ref: '#/components/schemas/SchemaObjectType'
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          description: Sanitized comment text treated as untrusted data.
+        columns:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/SchemaColumn'
+        isSystem:
+          type: boolean
+          description: True when the object is a denied system object.
+        isDeprecated:
+          type: boolean
+    SchemaSnapshot:
+      type: object
+      additionalProperties: false
+      required: [snapshotId, connectionId, workspaceId, fingerprint, discoveredAt, objectCount]
+      properties:
+        snapshotId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        workspaceId:
+          $ref: '#/components/schemas/WorkspaceId'
+        fingerprint:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: Deterministic SHA-256 fingerprint of the normalized snapshot.
+        discoveredAt:
+          type: string
+          format: date-time
+        objectCount:
+          type: integer
+          minimum: 0
+        objects:
+          type: array
+          maxItems: 5000
+          items:
+            $ref: '#/components/schemas/SchemaObject'
+    SchemaPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/SchemaObject'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'
+    SchemaStatus:
+      type: object
+      additionalProperties: false
+      required: [connectionId, currentSnapshotId, discoveredAt, objectCount, stale]
+      properties:
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        currentSnapshotId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        discoveredAt:
+          type: string
+          format: date-time
+        objectCount:
+          type: integer
+          minimum: 0
+        stale:
+          type: boolean
+          description: True when the snapshot is older than the configured freshness threshold.
     OperationFailure:
       type: object
       additionalProperties: false
