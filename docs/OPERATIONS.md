@@ -232,6 +232,45 @@ The adapter also enforces owner-only (0700/0600) POSIX permissions on its
 storage directory and rejects a pre-existing directory that is not
 owner-only (`LocalSecretStorage.java:42-64`, `273-300`).
 
+### KEK rotation procedure (local dev)
+
+Use this procedure to rotate the KEK ring without re-encrypting existing
+envelopes. It relies on the two-phase `currentKeyId` design above:
+
+1. Generate a new KEK: `NEW_KEY=$(openssl rand -base64 32)`.
+2. Add it to the ring while keeping the old KEK(s) present:
+   ```
+   RIVOQUERY_SECRETS_LOCAL_KEYS=v1:<old-key>,v2:$NEW_KEY
+   RIVOQUERY_SECRETS_LOCAL_CURRENT_KEY_ID=v2
+   ```
+3. Restart the application. New envelopes are now wrapped with `v2`; existing
+   `v1` envelopes still unwrap because `v1` remains in the ring.
+4. Verify an audited query still works against an existing connection (confirms
+   old envelopes remain decryptable).
+5. Retire the old KEK only after every envelope has been re-written under the
+   new KEK (e.g. via connection rotate-secret once that path is unblocked in
+   P5-100, or by recreating the connection). Remove `v1:` from
+   `RIVOQUERY_SECRETS_LOCAL_KEYS` and restart.
+
+**Recovery**: if a KEK is lost before its envelopes are re-wrapped, those
+envelopes are unrecoverable - there is no plaintext backup, no master key, and
+no escape hatch in the adapter. Recovery is to revoke the affected secrets and
+re-register new ones under a still-available KEK. Treat KEK material like any
+other credential: back it up in an external secret store, never in source
+control.
+
+### Reference-key rotation procedure (local dev)
+
+`RIVOQUERY_SECRETS_LOCAL_REFERENCE_KEY` derives the create-only envelope ID.
+Changing it invalidates every existing persisted reference because the adapter
+can no longer locate the original envelope by its old derived ID. Procedure:
+
+1. Rotate the reference key only together with a full migration of persisted
+   secret references, or while no persisted connections reference the old
+   derived IDs.
+2. There is no in-place re-derivation; plan it as a coordinated change with
+   the connection-secret persistence layer.
+
 ## Outbound egress and private-target policy
 
 Destination enforcement is ADR-0013, implemented by
@@ -322,6 +361,53 @@ infrastructure enforcement"). Operators must:
   target connections are process-local and scale with replica count (see pool
   budgets below).
 
+### Local-dev egress behavior
+
+For local development the same in-process destination policy applies, but there
+is typically no host firewall enforcing the independent infrastructure layer.
+What is **denied by default** (regardless of any allowlist):
+
+- Loopback (`127.0.0.0/8`, `::1`), link-local (`169.254.0.0/16`,
+  `fe80::/10`), multicast, broadcast, and documentation ranges.
+- Cloud-metadata service addresses (AWS `169.254.169.254`, GCP
+  `169.254.169.254`/`metadata.google.internal`, Azure
+  `169.254.169.254`) - these are link-local and are always prohibited.
+- IPv4-mapped/transition forms are classified by their embedded IPv4 address,
+  so an IPv6 form of a prohibited IPv4 address is also prohibited.
+
+What is **private and denied unless allowlisted** (RFC 1918 / CGNAT / ULA):
+
+- `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `100.64.0.0/10` (CGNAT),
+  `fc00::/7` (ULA).
+
+**To add a private allowlist for local dev** (e.g. to test against a database
+on a private LAN or a Docker bridge network), add an `application.yaml`
+override or an environment-variable-shaped entry under
+`rivoquery.destination.private-allowlist`. Each rule binds connector kind,
+canonical hostname (exact lower-case name or a suffix beginning with `.`),
+port range, and destination CIDR list; every resolved address and the
+name/port must match the _same_ rule. Example YAML:
+
+```yaml
+rivoquery:
+  destination:
+    private-allowlist:
+      - connector-kind: POSTGRESQL
+        hostname: .internal.example.com
+        port-range:
+          min: 5432
+          max: 5432
+        cidrs:
+          - 10.0.0.0/8
+```
+
+A rule can never widen the non-overridable deny set - link-local and
+metadata ranges stay prohibited regardless of any allowlist entry. After
+changing the allowlist, restart the application (the policy binds into pool
+keys and validation). For production, mirror the same CIDRs in the host/
+network firewall so the infrastructure layer agrees with the application
+layer; disagreement fails closed.
+
 ## Target pool budgets
 
 As of Phase 2 there is no concrete target-connection-pool implementation yet:
@@ -329,8 +415,8 @@ As of Phase 2 there is no concrete target-connection-pool implementation yet:
 (`connection/pool/TargetPoolManager.java`) and the wired bean is
 `NoOpTargetPoolManager` (`ConnectionLifecycleWiringConfiguration.java:122-125`),
 so there is currently nothing to configure and `stopNewBorrowsAndDrain` is
-intentionally a no-op. Pool creation, capacity budgets, just-in-time lease, and
-idle eviction/drain/shutdown are owned by P5-100
+intentionally a no-op. Pool creation, capacity budgets, just-in-time lease,
+and idle eviction/drain/shutdown are owned by P5-100
 (`NoOpTargetPoolManager.java:8-18`).
 
 What already exists and what operators must plan for:
@@ -360,6 +446,36 @@ deployment must bound global and per-connection totals against replica count
 (`docs/ARCHITECTURE.md:247`, `docs/OPERATIONS.md` "Deployment safety" above).
 Until P5-100, treat "no pool implementation" as "no unbounded pooling risk
 yet", not as evidence that budgets are in place.
+
+### Control-database connection pool (local Compose)
+
+The control-plane PostgreSQL connection pool is HikariCP (Spring Boot's
+default) and is the only live pool in Phase 2. Its relevant timeouts are
+pinned in `apps/api/src/main/resources/application.yaml`:
+
+- `spring.datasource.hikari.connection-timeout: 2000` (ms) - maximum time to
+  wait for a connection from the pool.
+- `spring.datasource.hikari.validation-timeout: 1000` (ms) - maximum time to
+  validate a connection's liveness.
+- `spring.datasource.hikari.data-source-properties.connectTimeout: 2` (s) -
+  driver-level TCP connect timeout.
+
+Spring Boot's default HikariCP `maximum-pool-size` is **10** and
+`minimum-idle` is the same as the maximum when unset. For local Compose this
+means a single API process can hold up to 10 control-database connections.
+This is intentional for local development: the control-plane workload is
+low-traffic and single-tenant. Operators running multiple API replicas
+locally (uncommon) or connecting many concurrent workstations must account for
+`10 × replica_count` control-database connections against PostgreSQL's
+`max_connections` (default 100 for the `postgres:17.6` image). The local
+Compose container does not override `max_connections`, so the default 100
+ceiling applies.
+
+To override the pool size for local dev, set e.g.
+`spring.datasource.hikari.maximum-pool-size=5` in your `.env` or
+`application-local.yaml`. Do not raise it without a corresponding reason;
+the control-plane schema is small and the workload is per-request, not
+long-lived.
 
 ## Rotation and deletion operations
 
@@ -427,6 +543,37 @@ runtime role from those variables (never through Flyway).
    `rivoquery.auth.jwt.hmac-secret-base64`
    (`JwtAuthenticationProperties.java`,
    `JwtAuthenticationConfiguration.java`).
+
+### What is safe in `.env.example` / `compose.yaml`
+
+Both files have been validated to contain **no embedded secrets**:
+
+- `.env.example` values are all synthetic placeholders:
+  - `RIVOQUERY_CONTROL_DB_NAME=rivoquery_control` (non-sensitive database
+    name).
+  - `RIVOQUERY_CONTROL_DB_PORT=5432` (default port).
+  - `SPRING_FLYWAY_USER=rivoquery_migrator` and
+    `SPRING_FLYWAY_PASSWORD=synthetic-local-only-migrator-change-before-use`
+    (synthetic, local-only, flagged "change-before-use").
+  - `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/rivoquery_control`
+    (local loopback URL with no credentials embedded).
+  - `SPRING_DATASOURCE_USERNAME=rivoquery_app` and
+    `SPRING_DATASOURCE_PASSWORD=synthetic-local-only-app-change-before-use`
+    (synthetic, local-only, flagged "change-before-use").
+  - No `RIVOQUERY_SECRETS_*` key material is present.
+- `compose.yaml` references every sensitive value via
+  `${VAR:?VAR must be set}` (Compose's required-variable guard) and embeds
+  no plaintext credentials. The PostgreSQL image digest is pinned; the
+  container runs with `no-new-privileges:true`, `mem_limit: 512m`,
+  `cpus: 1.0`, and a bounded `shm_size: 128mb`.
+
+The `.env` file created from `.env.example` is git-ignored (see `.gitignore`)
+and is the only file that should hold real local values. Never commit it.
+Never replace the synthetic placeholders in `.env.example` with real or
+shared-environment credentials; its purpose is to be a safe, copyable
+template. If you need real credentials for a shared staging environment, use
+the external secrets/IaC path described in "Control database:
+migration-owner and runtime-role separation" above - never this file.
 
 Start order for a clean local stack:
 
