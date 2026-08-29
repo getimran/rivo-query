@@ -30,7 +30,12 @@ public class SchemaRefreshService {
     }
 
     @Transactional
-    public SchemaSnapshot refresh(WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
+    public SchemaSnapshot refresh(
+            java.sql.Connection connection,
+            WorkspaceId workspaceId,
+            ConnectionId connectionId,
+            SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
+        Objects.requireNonNull(connection, "connection");
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
         Objects.requireNonNull(policy, "policy");
@@ -41,7 +46,7 @@ public class SchemaRefreshService {
             true,
             Math.min(policy.maxColumnsPerObject(), 200)
         );
-        SchemaSnapshot raw = discoveryPort.discover(connectionId, safePolicy);
+        SchemaSnapshot raw = discoveryPort.discover(connection, workspaceId, connectionId, safePolicy);
         List<SchemaObject> normalized = new ArrayList<>();
         for (SchemaObject object : raw.objects()) {
             if (SystemObjectDenylist.isSystemSchema(discoveryPort.kind(), object.canonicalName().schema())) {

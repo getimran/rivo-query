@@ -153,6 +153,21 @@ New types: `CatalogObjectId`, `RawQualifiedName`, `CanonicalQualifiedName`,
 `SchemaSelectorPort`. 17 new tests pass; full suite is 597 green. P3-040/050/060
 migration, persistence, and connector discovery remain.
 
+P3-040 migration and persistence update (2026-08-29): Flyway V4 creates
+`schema_snapshots`, `schema_objects`, `schema_columns`,
+`current_schema_snapshot`, and `schema_refresh_operations` tables with tenant
+composite FKs and runtime-role grants. `JdbcCatalogRepository` implements
+`CatalogRepository` with snapshot insert/object+column batch insert, atomic
+current-snapshot pointer upsert, status lookup, and cursor-paged object
+browsing with column hydration. `JdbcSchemaRefreshOperationRepository`
+implements the new `SchemaRefreshOperationRepository` port for durable worker
+claim/lease rows. Added value-based null-rejection tests for both adapters.
+Fixed P3-030 gap: `SchemaRefreshService.refresh` now calls
+`catalogRepository.insert` before `installCurrentSnapshot` and is wrapped in
+`@Transactional` so snapshot rows and pointer advances are atomic. Commit
+`d99dbc0` on `feat/phase-3-catalog-persistence`. P3-050/060 connector
+discovery and P3-070 worker operations remain.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.

@@ -4,12 +4,14 @@ import com.knowimran.rivoquery.catalog.SchemaObject;
 import com.knowimran.rivoquery.catalog.SchemaSnapshot;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.identity.WorkspaceId;
+import java.sql.Connection;
 import java.util.List;
 
 public interface SchemaDiscoveryPort {
     DatabaseKind kind();
 
-    SchemaSnapshot discover(ConnectionId connectionId, DiscoveryPolicy policy) throws DiscoveryException;
+    SchemaSnapshot discover(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, DiscoveryPolicy policy) throws DiscoveryException;
 
     record DiscoveryPolicy(
         List<String> allowedSchemas,

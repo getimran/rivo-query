@@ -37,8 +37,7 @@ CREATE TABLE schema_columns (
     snapshot_id      VARCHAR(64) NOT NULL,
     object_index     INTEGER NOT NULL,
     column_index     INTEGER NOT NULL,
-    canonical_schema TEXT NOT NULL CHECK (canonical_schema <> ''),
-    canonical_object TEXT NOT NULL CHECK (canonical_object <> ''),
+    canonical_name   TEXT NOT NULL CHECK (canonical_name <> ''),
     type_family      TEXT NOT NULL CHECK (type_family IN (
                          'STRING', 'NUMERIC', 'TIMESTAMP',
                          'BOOLEAN', 'BINARY', 'JSON', 'OTHER')),

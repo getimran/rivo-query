@@ -64,10 +64,9 @@ public class JdbcCatalogRepository implements CatalogRepository {
 
     private static final String INSERT_COLUMN = """
             INSERT INTO schema_columns
-                (snapshot_id, object_index, column_index, canonical_schema,
-                 canonical_object, type_family, nullable, description,
-                 classification)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (snapshot_id, object_index, column_index, canonical_name,
+                 type_family, nullable, description, classification)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
     private static final String INSTALL_CURRENT_SNAPSHOT = """
@@ -100,8 +99,8 @@ public class JdbcCatalogRepository implements CatalogRepository {
             """;
 
     private static final String FIND_COLUMNS = """
-            SELECT object_index, column_index, canonical_schema, canonical_object,
-                   type_family, nullable, description, classification
+            SELECT object_index, column_index, canonical_name, type_family,
+                   nullable, description, classification
             FROM schema_columns
             WHERE snapshot_id = ?
             ORDER BY object_index, column_index
@@ -290,12 +289,11 @@ public class JdbcCatalogRepository implements CatalogRepository {
                     ps.setString(1, snapshotId);
                     ps.setInt(2, objectIndex);
                     ps.setInt(3, columnIndex);
-                    ps.setString(4, column.name().schema());
-                    ps.setString(5, column.name().object());
-                    ps.setString(6, column.type().name());
-                    ps.setBoolean(7, column.nullable());
-                    ps.setString(8, column.description());
-                    ps.setString(9, column.classification().name());
+                    ps.setString(4, column.name());
+                    ps.setString(5, column.type().name());
+                    ps.setBoolean(6, column.nullable());
+                    ps.setString(7, column.description());
+                    ps.setString(8, column.classification().name());
                 });
             }
         }
@@ -311,9 +309,7 @@ public class JdbcCatalogRepository implements CatalogRepository {
                         ? ColumnClassification.valueOf(classification)
                         : ColumnClassification.NONE;
                 SchemaColumn column = new SchemaColumn(
-                        new CanonicalQualifiedName(
-                                rs.getString("canonical_schema"),
-                                rs.getString("canonical_object")),
+                        rs.getString("canonical_name"),
                         ColumnTypeFamily.valueOf(rs.getString("type_family")),
                         rs.getBoolean("nullable"),
                         rs.getString("description"),
