@@ -177,7 +177,15 @@ uses JDBC `DatabaseMetaData` to enumerate tables/views and columns, applies
 `maxColumnsPerObject`, canonicalizes identifiers, and returns a `SchemaSnapshot`
 placeholder for the service to normalize and fingerprint. Added null-rejection
 tests for both dialects. Commit `8dd465a` on `feat/phase-3-catalog-persistence`.
-P3-070 worker operations and P3-080 refresh orchestration remain.
+
+P3-070 worker operations update (2026-08-29): implemented `SchemaRefreshWorker`
+under `platform/operation/` with claim/lease/fencing/retry/release semantics.
+`SchemaRefreshOperationRepository` gained atomic `claim` (optimistic fencing by
+expected token), `renewLease`, `retry` (with backoff doubling capped at 60s),
+`findPending`, and `resetExpiredRunning` for crash recovery. Worker rejects
+non-PENDING claims, returns stale claims, and releases only its own claims.
+Value-based worker-fencing tests pass. Commit `416b818` on
+`feat/phase-3-catalog-persistence`. P3-080 refresh orchestration remains.
 
 ## Phase 1 — Repository and backend bootstrap
 
