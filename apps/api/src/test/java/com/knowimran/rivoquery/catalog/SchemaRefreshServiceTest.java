@@ -6,6 +6,8 @@ import com.knowimran.rivoquery.catalog.application.SchemaRefreshService;
 import com.knowimran.rivoquery.catalog.application.SchemaSelectorPort;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator;
+import com.knowimran.rivoquery.connection.application.lifecycle.SecureRandomCanonicalIdGenerator;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import org.junit.jupiter.api.Test;
 
@@ -25,10 +27,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SchemaRefreshServiceTest {
+    private static final CanonicalIdGenerator ID_GENERATOR = new SecureRandomCanonicalIdGenerator();
+
     @Test
     void normalizesAndDeduplicatesSystemObjects() throws SchemaDiscoveryPort.DiscoveryException {
         FakeRepository repo = new FakeRepository();
-        SchemaRefreshService service = new SchemaRefreshService(repo, new FakeDiscoveryPort(DatabaseKind.POSTGRESQL));
+        SchemaRefreshService service = new SchemaRefreshService(repo, new FakeDiscoveryPort(DatabaseKind.POSTGRESQL), ID_GENERATOR);
         SchemaSnapshot snapshot = service.refresh(
                 new NoOpConnection(),
                 new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
@@ -47,7 +51,7 @@ class SchemaRefreshServiceTest {
     @Test
     void canonicalizesNamesAndSorts() throws SchemaDiscoveryPort.DiscoveryException {
         FakeRepository repo = new FakeRepository();
-        SchemaRefreshService service = new SchemaRefreshService(repo, new FakeDiscoveryPort(DatabaseKind.POSTGRESQL));
+        SchemaRefreshService service = new SchemaRefreshService(repo, new FakeDiscoveryPort(DatabaseKind.POSTGRESQL), ID_GENERATOR);
         SchemaSnapshot snapshot = service.refresh(
                 new NoOpConnection(),
                 new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"),
@@ -61,14 +65,14 @@ class SchemaRefreshServiceTest {
 
     @Test
     void rejectsNullConnection() {
-        SchemaRefreshService service = new SchemaRefreshService(new FakeRepository(), new FakeDiscoveryPort(DatabaseKind.POSTGRESQL));
+        SchemaRefreshService service = new SchemaRefreshService(new FakeRepository(), new FakeDiscoveryPort(DatabaseKind.POSTGRESQL), ID_GENERATOR);
         assertThatThrownBy(() -> service.refresh(null, new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), policy()))
             .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void rejectsNullWorkspaceId() {
-        SchemaRefreshService service = new SchemaRefreshService(new FakeRepository(), new FakeDiscoveryPort(DatabaseKind.POSTGRESQL));
+        SchemaRefreshService service = new SchemaRefreshService(new FakeRepository(), new FakeDiscoveryPort(DatabaseKind.POSTGRESQL), ID_GENERATOR);
         assertThatThrownBy(() -> service.refresh(new NoOpConnection(), null, new ConnectionId("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), policy()))
             .isInstanceOf(NullPointerException.class);
     }

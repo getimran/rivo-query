@@ -13,6 +13,7 @@ import com.knowimran.rivoquery.catalog.SystemObjectDenylist;
 import com.knowimran.rivoquery.catalog.application.CatalogRepository;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,10 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class SchemaRefreshService {
     private final CatalogRepository catalogRepository;
     private final SchemaDiscoveryPort discoveryPort;
+    private final CanonicalIdGenerator idGenerator;
 
-    public SchemaRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort) {
+    public SchemaRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort, CanonicalIdGenerator idGenerator) {
         this.catalogRepository = Objects.requireNonNull(catalogRepository, "catalogRepository");
         this.discoveryPort = Objects.requireNonNull(discoveryPort, "discoveryPort");
+        this.idGenerator = Objects.requireNonNull(idGenerator, "idGenerator");
     }
 
     @Transactional
@@ -76,20 +79,16 @@ public class SchemaRefreshService {
         }
         normalized.sort((a, b) -> a.canonicalName().qualified().compareTo(b.canonicalName().qualified()));
         SchemaSnapshot snapshot = new SchemaSnapshot(
-            generateSnapshotId(workspaceId, connectionId),
-            workspaceId,
-            connectionId,
-            SchemaFingerprint.fromSnapshot(raw),
-            Instant.now(),
-            normalized.size(),
-            normalized
+                idGenerator.newSnapshotId(),
+                workspaceId,
+                connectionId,
+                SchemaFingerprint.fromSnapshot(raw),
+                Instant.now(),
+                normalized.size(),
+                normalized
         );
         catalogRepository.insert(snapshot);
         catalogRepository.installCurrentSnapshot(workspaceId, connectionId, snapshot);
         return snapshot;
-    }
-
-    private static String generateSnapshotId(WorkspaceId workspaceId, ConnectionId connectionId) {
-        return "snap_" + workspaceId.value() + "_" + connectionId.value();
     }
 }

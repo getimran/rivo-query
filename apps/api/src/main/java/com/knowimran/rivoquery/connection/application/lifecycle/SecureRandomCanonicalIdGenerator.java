@@ -27,6 +27,11 @@ public final class SecureRandomCanonicalIdGenerator implements CanonicalIdGenera
         return new OperationId("op_" + randomSuffix());
     }
 
+    @Override
+    public String newSnapshotId() {
+        return "snap_" + randomSuffix();
+    }
+
     private String randomSuffix() {
         var builder = new StringBuilder(LENGTH);
         for (int i = 0; i < LENGTH; i++) {

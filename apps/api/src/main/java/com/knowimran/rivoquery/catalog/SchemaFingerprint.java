@@ -18,7 +18,6 @@ public record SchemaFingerprint(String value) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             digest.update(snapshot.workspaceId().value().getBytes(java.nio.charset.StandardCharsets.UTF_8));
             digest.update(snapshot.connectionId().value().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            digest.update(Long.toString(snapshot.discoveredAt().toEpochMilli()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             digest.update(Integer.toString(snapshot.objectCount()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
             for (SchemaObject object : snapshot.objects()) {
                 digest.update(object.rawName().qualified().getBytes(java.nio.charset.StandardCharsets.UTF_8));
