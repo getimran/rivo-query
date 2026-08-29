@@ -587,3 +587,66 @@ set -a; . ./.env; set +a
 Reset with `down --volumes` only for a deliberately destroyed local control
 database (it deletes the named volume and runs migrations again from empty);
 see `deploy/local/README.md`.
+
+## Schema refresh worker operations
+
+### Worker model
+
+- The refresh worker is a single-threaded claim/lease processor. In local
+  development it runs in the same JVM as the API; in production it should be
+  deployed as a separate worker replica with its own `workerId`.
+- Each refresh request creates a durable `schema_refresh_operations` row in
+  `PENDING` state. The worker claims it with an optimistic fencing token,
+  transitions to `RUNNING`, and opens a read-only JDBC connection through the
+  secret store.
+- Leases are 30 seconds by default. The worker must renew or complete before
+  expiry. Expired `RUNNING` operations are reset to `PENDING` by
+  `resetExpiredRunning` for retry.
+- Retry backoff doubles per attempt, capped at 60 seconds. Maximum attempts
+  is 3. After exhaustion the operation transitions to `FAILED`.
+
+### Graceful shutdown
+
+- On shutdown, the worker stops claiming new operations and completes or
+  releases its current claim. In-progress operations retain their lease
+  expiry; the next worker instance (or the same instance after restart) will
+  recover expired leases within one lease period.
+
+### Refresh schedules and cooldowns
+
+- Schema refresh is triggered by the `POST /api/v1/connections/{id}/schema/refresh`
+  endpoint. It is idempotent: an exact idempotency key replay returns the
+  existing operation without creating a new one.
+- There is no automatic refresh scheduler in Phase 3. Operators should use
+  external cron or event-driven triggers if periodic refresh is required.
+- A cooldown is not enforced at the API layer; the worker's lease and
+  idempotency mechanisms naturally serialize concurrent requests for the
+  same connection.
+
+### Capacity and recovery
+
+- The control-database connection pool is sized for the worker's claim/lease
+  traffic. The default `maximum-pool-size` is 10; see `ConnectionLifecycleWiringConfiguration`
+  for the local override mechanism.
+- If a worker replica crashes, its leases expire and `resetExpiredRunning`
+  resets those operations to `PENDING` within 30 seconds. Another replica
+  (or the same one after restart) will then claim and process them.
+- Audit/telemetry: every refresh records the operation lifecycle in
+  `schema_refresh_operations`. The API returns the operation ID and status;
+  raw schema rows, credentials, and connection URLs are never exposed in
+  responses or logs.
+
+### Local multi-worker validation
+
+- For local validation, run two API instances with distinct `workerId`
+  values (e.g. `schema-refresh-worker-1` and `schema-refresh-worker-2`)
+  against the same control database. Trigger concurrent refreshes for the
+  same connection and verify:
+  1. Only one worker claims the operation (fencing token prevents double-claim).
+  2. The second worker sees the operation in `RUNNING` and does not re-claim.
+  3. If the first worker is killed, the second worker recovers the expired
+     lease and completes the refresh after `resetExpiredRunning` runs.
+- In the local Compose stack, scale the API service with `docker-compose up
+  --scale api=2` and send concurrent refresh requests with different
+  idempotency keys. Verify the operation transitions through `PENDING ->
+  RUNNING -> SUCCEEDED` or `FAILED` exactly once.
