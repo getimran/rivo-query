@@ -185,7 +185,19 @@ expected token), `renewLease`, `retry` (with backoff doubling capped at 60s),
 `findPending`, and `resetExpiredRunning` for crash recovery. Worker rejects
 non-PENDING claims, returns stale claims, and releases only its own claims.
 Value-based worker-fencing tests pass. Commit `416b818` on
-`feat/phase-3-catalog-persistence`. P3-080 refresh orchestration remains.
+`feat/phase-3-catalog-persistence`.
+
+P3-080 refresh orchestration update (2026-08-29): implemented
+`SchemaRefreshOrchestrator` under `platform/operation/` to sequence durable
+operation creation, worker claim, refresh execution, and terminal state
+transition. `SchemaFingerprint.fromSnapshot` is now deterministic: removed
+`discoveredAt` from the hash input so identical schemas produce identical
+fingerprints regardless of refresh timestamp. `SchemaRefreshService` now uses
+`CanonicalIdGenerator` for unique snapshot IDs instead of a deterministic
+workspace/connection-derived ID, preventing primary-key collisions on repeated
+refreshes. Value-based orchestrator tests cover success and failure paths.
+Commit `d9d8e4c` on `feat/phase-3-catalog-persistence`. P3-090 relevance
+selection and P3-100 REST endpoints remain.
 
 ## Phase 1 — Repository and backend bootstrap
 
