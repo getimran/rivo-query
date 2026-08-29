@@ -108,6 +108,55 @@ export function ConnectionDetailPanel({
     }
   }, [confirmation]);
 
+  function handleDialogKeyDown(event: KeyboardEvent) {
+    if (event.key !== "Tab") {
+      return;
+    }
+    const container = confirmBarRef.current;
+    if (container === null) {
+      return;
+    }
+    const focusable = container.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+    if (focusable.length === 0) {
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (first === undefined || last === undefined) {
+      return;
+    }
+    if (event.shiftKey) {
+      if (document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else if (document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  useEffect(() => {
+    if (confirmation === null) {
+      return;
+    }
+    const container = confirmBarRef.current;
+    if (container === null) {
+      return;
+    }
+    container.addEventListener("keydown", handleDialogKeyDown);
+    return () => {
+      container.removeEventListener("keydown", handleDialogKeyDown);
+    };
+  }, [confirmation]);
+
+  useEffect(() => {
+    if (confirmation === null) {
+      return;
+    }
+    confirmBarRef.current?.focus();
+  }, [confirmation]);
+
   function closeConfirmation() {
     setConfirmation(null);
   }
@@ -356,6 +405,7 @@ export function ConnectionDetailPanel({
             className="confirm-bar"
             ref={confirmBarRef}
             role="dialog"
+            aria-modal="true"
             aria-label="Confirm disable"
             tabIndex={-1}
           >
@@ -384,6 +434,7 @@ export function ConnectionDetailPanel({
             className="confirm-bar"
             ref={confirmBarRef}
             role="dialog"
+            aria-modal="true"
             aria-label="Confirm delete"
             tabIndex={-1}
           >

@@ -279,6 +279,40 @@ describe("ConnectionDetailPanel", () => {
     expect(disable).not.toHaveBeenCalled();
   });
 
+  it("traps Tab focus within the disable confirmation dialog", async () => {
+    const disable = vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: connectionDetail({ state: "DISABLED", version: 4 }),
+      etag: '"v4"',
+      requestId: "disable-request-01",
+    });
+    const api = apiWith({ getConnection: vi.fn().mockResolvedValue(okDetail), disableConnection: disable });
+    render(
+      <ConnectionDetailPanel
+        api={api}
+        workspaceId="wsp_one"
+        connectionId="con_one"
+        onBack={vi.fn()}
+        onListChanged={vi.fn()}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "warehouse-read" });
+    fireEvent.click(screen.getByRole("button", { name: "Disable" }));
+
+    const confirmButton = screen.getByRole("button", { name: "Confirm disable" });
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+
+    confirmButton.focus();
+    expect(document.activeElement).toBe(confirmButton);
+
+    fireEvent.keyDown(confirmButton, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(cancelButton);
+
+    fireEvent.keyDown(cancelButton, { key: "Tab" });
+    expect(document.activeElement).toBe(confirmButton);
+  });
+
   it("surfaces a problem from a disable attempt", async () => {
     const disable = vi.fn().mockResolvedValue({
       kind: "problem",

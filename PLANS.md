@@ -55,6 +55,69 @@ rotation saga), P2-110/120 (live PostgreSQL/MySQL connection tests), P2-130
 (devops docs), and P2-190/200 remain before Phase 2 is complete. GitHub
 Actions remains deferred to final deployment readiness.
 
+Repository gate update (2026-08-27): P2-100/P2-110/P2-120 (lifecycle CRUD/rotation
+saga + live PostgreSQL/MySQL connector tests) had already merged to `main`. This
+update closes P2-130 (connection REST surface). P2-130 landed as PR #13
+(`feat/phase-2-connection-rest-api`) after an independent
+`backend-code-reviewer` pass (no blockers; 2 MED, 3 LOW, 2 NIT all resolved in
+follow-up: credential-bearing fields excluded from the idempotency fingerprint,
+member-with-grant GET alignment, `tryReserve` SQLState 23505 discrimination, and
+two documentation notes) and a green full suite (67 PostgreSQL Testcontainers
+integration tests, 0 failures). P2-130 adds the generated-OpenAPI REST surface,
+`ConnectionProfile` persistence (Flyway V3), workspace/member resolution,
+idempotency-key reservation with secret-free request fingerprints, and RFC 9457
+problem mapping including `ConstraintViolationException` -> 400
+`VALIDATION_FAILED`. A small chore PR #12 (`.gitignore` for Claude Code
+machine-local settings) was merged first. `main` is fast-forwarded to
+`6659a76`; no pull request remains open. Remaining before the `CP-2` closeout:
+P2-140 (web onboarding UI, `frontend-engineer` in flight), P2-150 (QA matrix),
+P2-160 (backend review — effectively discharged by the P2-130 review above),
+P2-170 (frontend review), P2-180 (devops docs, `devops-engineer` in flight),
+P2-190/200 (final verification + closeout PR). GitHub Actions remains deferred
+to final deployment readiness.
+
+P2-180 docs update (2026-08-29): documented the four runbook items for local
+deployment in `docs/OPERATIONS.md`:
+1. **External encryption key injection** — expanded with explicit KEK rotation
+   and recovery procedures, plus reference-key rotation guidance, for the local
+   AES-GCM secret store (`RIVOQUERY_SECRETS_LOCAL_KEYS`,
+   `RIVOQUERY_SECRETS_LOCAL_CURRENT_KEY_ID`,
+   `RIVOQUERY_SECRETS_LOCAL_REFERENCE_KEY`).
+2. **Outbound egress / private-target policy** — added a "Local-dev egress
+   behavior" subsection spelling out what is denied by default (loopback,
+   link-local, cloud-metadata, multicast, documentation ranges) vs. what is
+   private/RFC 1918-denied-unless-allowlisted, with an example YAML allowlist
+   rule for adding private targets in local dev.
+3. **Total pool budgets** — added a "Control-database connection pool (local
+   Compose)" subsection documenting the live HikariCP pool: default
+   `maximum-pool-size` of 10, configured `connection-timeout`/`validation-timeout`
+   /`connectTimeout`, the `10 × replica_count` multiplication against
+   PostgreSQL's default `max_connections=100`, and the override mechanism.
+4. **Safe local synthetic configuration** — added an explicit "What is safe in
+   `.env.example` / `compose.yaml`" audit confirming both files contain no
+   embedded secrets (all `.env.example` passwords are synthetic
+   "synthetic-local-only-...-change-before-use" placeholders; `compose.yaml`
+   references every secret via `${VAR:?VAR must be set}`; no
+   `RIVOQUERY_SECRETS_*` key material is present).
+
+Validation: `docker-compose --env-file .env.example -f deploy/local/compose.yaml
+config --quiet` passes; secret-pattern scan of both files finds no embedded
+credentials. Application code was not modified.
+
+Repository gate update (2026-08-29): P2-140 (web onboarding UI) is complete on
+`feat/phase-2-web-onboarding`. The frontend adds workspace selection, connection
+create/edit/detail/list, transient write-only secret handling, and disabled-action
+affordances under `apps/web/src/app/connections/` and `apps/web/src/app/auth/`.
+Independent frontend review (P2-170) found one medium accessibility gap in
+confirmation dialogs: missing `aria-modal="true"` and keyboard focus trapping.
+This was fixed in `ConnectionDetailPanel.tsx` and covered by a new focus-trap
+test; frontend lint, 161 tests, and production build all pass. P2-180 (devops
+docs) is also complete: `docs/OPERATIONS.md` now covers local external encryption
+key injection/rotation, outbound egress policy, control-database pool budgets,
+and safe synthetic-configuration audit. Remaining before `CP-2` closeout: P2-150
+(QA matrix), P2-190/200 (final verification + closeout PR). GitHub Actions
+remains deferred to final deployment readiness.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.
