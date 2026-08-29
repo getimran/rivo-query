@@ -164,9 +164,20 @@ implements the new `SchemaRefreshOperationRepository` port for durable worker
 claim/lease rows. Added value-based null-rejection tests for both adapters.
 Fixed P3-030 gap: `SchemaRefreshService.refresh` now calls
 `catalogRepository.insert` before `installCurrentSnapshot` and is wrapped in
-`@Transactional` so snapshot rows and pointer advances are atomic. Commit
-`d99dbc0` on `feat/phase-3-catalog-persistence`. P3-050/060 connector
-discovery and P3-070 worker operations remain.
+`@Transactional` so snapshot rows and pointer advances are atomic.
+`SchemaDiscoveryPort.discover` now accepts a `java.sql.Connection` and
+`WorkspaceId` so callers resolve the target connection before metadata
+extraction. Commit `8dd465a` on `feat/phase-3-catalog-persistence`.
+
+P3-050/060 connector discovery update (2026-08-29): implemented
+`PostgresqlSchemaDiscovery` and `MysqlSchemaDiscovery` as Spring components
+under `platform/connector/postgresql/` and `platform/connector/mysql/`. Each
+uses JDBC `DatabaseMetaData` to enumerate tables/views and columns, applies
+`DiscoveryPolicy` schema allowlists, excludes system schemas, respects
+`maxColumnsPerObject`, canonicalizes identifiers, and returns a `SchemaSnapshot`
+placeholder for the service to normalize and fingerprint. Added null-rejection
+tests for both dialects. Commit `8dd465a` on `feat/phase-3-catalog-persistence`.
+P3-070 worker operations and P3-080 refresh orchestration remain.
 
 ## Phase 1 — Repository and backend bootstrap
 
