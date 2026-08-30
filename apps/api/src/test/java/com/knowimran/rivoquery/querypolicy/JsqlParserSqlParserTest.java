@@ -14,7 +14,7 @@ class JsqlParserSqlParserTest {
     void parseAcceptsSimpleSelect() throws Exception {
         SqlParserPort.ParseResult result = parser.parse(
                 DatabaseKind.POSTGRESQL,
-                "SELECT id, name FROM users WHERE id = 1",
+                "SELECT id, name FROM public.users WHERE id = 1",
                 List.of("public"),
                 List.of("public.users"),
                 10,
@@ -24,16 +24,34 @@ class JsqlParserSqlParserTest {
                 500
         );
         assertThat(result.isApproved()).isTrue();
-        assertThat(result.referencedTables()).contains("users");
+        assertThat(result.referencedTables()).contains("public.users");
         assertThat(result.canonicalSql()).isNotBlank();
         assertThat(result.fingerprint()).isNotBlank();
+        assertThat(result.fingerprint()).hasSize(64);
+    }
+
+    @Test
+    void parseRejectsUnauthorizedTable() throws Exception {
+        SqlParserPort.ParseResult result = parser.parse(
+                DatabaseKind.POSTGRESQL,
+                "SELECT id FROM public.secrets",
+                List.of("public"),
+                List.of("public.users"),
+                10,
+                20,
+                5,
+                5,
+                500
+        );
+        assertThat(result.isApproved()).isFalse();
+        assertThat(result.rejectedReasons()).contains("table public.secrets is not in the authorized catalog");
     }
 
     @Test
     void parseRejectsInsert() throws Exception {
         SqlParserPort.ParseResult result = parser.parse(
                 DatabaseKind.POSTGRESQL,
-                "INSERT INTO users (id) VALUES (1)",
+                "INSERT INTO public.users (id) VALUES (1)",
                 List.of("public"),
                 List.of("public.users"),
                 10,
@@ -50,7 +68,7 @@ class JsqlParserSqlParserTest {
     void parseRejectsSelectInto() throws Exception {
         SqlParserPort.ParseResult result = parser.parse(
                 DatabaseKind.POSTGRESQL,
-                "SELECT * INTO new_table FROM users",
+                "SELECT * INTO new_table FROM public.users",
                 List.of("public"),
                 List.of("public.users"),
                 10,
@@ -84,7 +102,7 @@ class JsqlParserSqlParserTest {
     void parseRejectsTooManyTables() throws Exception {
         SqlParserPort.ParseResult result = parser.parse(
                 DatabaseKind.POSTGRESQL,
-                "SELECT * FROM users u JOIN orders o ON u.id = o.user_id JOIN products p ON o.product_id = p.id",
+                "SELECT * FROM public.users u JOIN public.orders o ON u.id = o.user_id JOIN public.products p ON o.product_id = p.id",
                 List.of("public"),
                 List.of("public.users", "public.orders", "public.products"),
                 2,

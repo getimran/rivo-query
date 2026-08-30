@@ -4,11 +4,12 @@ Review correctness and security before style.
 
 ## Pre-PR requirement
 
-Code review is mandatory before raising or updating any pull request. Every PR
-must be reviewed for correctness, security, architecture, and test coverage
-before it is opened or re-opened. Issues identified during review must be fixed
-in the same branch before merge; do not defer review findings to follow-up PRs
-unless explicitly approved.
+Code review is mandatory before raising, updating, or merging any pull request.
+Every PR must be reviewed for correctness, security, architecture, and test
+coverage before it is opened, re-opened, or merged. Issues identified during
+review must be fixed in the same branch before merge; do not defer review
+findings to follow-up PRs unless explicitly approved. No code may be pushed to
+a shared branch or merged without completing this review step.
 
 ## Blocking findings
 
