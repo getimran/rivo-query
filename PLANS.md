@@ -225,6 +225,37 @@ orchestrator. `SchemaRefreshConnectionFactory` opens JDBC connections through
 wires all catalog/schema beans. Value-based controller and service tests cover
 success and failure paths. Commit on `feat/phase-3-catalog-persistence`.
 
+P3-150 worker operations runbook update (2026-08-30): documented worker
+replicas, leases, graceful shutdown, refresh schedules/cooldowns, capacity and
+recovery in `docs/OPERATIONS.md`. Commit `0d89650` on
+`feat/phase-3-catalog-persistence`.
+
+Schema refresh orchestrator refactor (2026-08-30): moved
+`SchemaRefreshOrchestrator` from `platform/operation/` to `catalog/application/`
+and introduced `SchemaRefreshWorkerPort` to decouple the orchestrator from the
+concrete worker implementation. Added `SchemaRefreshFailedException` and
+`SchemaAccessDeniedException` with RFC 9457 mappings in `SafeProblemHandler`.
+`SchemaRefreshRequestService` now translates `DiscoveryException` into
+`SchemaRefreshFailedException`; `SchemaController` catches that specific type
+for idempotency rollback. `SchemaRefreshJdbcConnectionFactory` is now public
+and its secret-consumer callback no longer swallows `SQLException`. Fixed
+pre-existing compilation issues in `SchemaDiscoverySelector` (wrong package
+imports and checked exception in `kind()`). Commit `e6fffd8` on
+`feat/phase-3-catalog-persistence`.
+
+P3-160 verification update (2026-08-30): ran full backend suite (633 tests, 632
+pass, 1 pre-existing `ArchitectureTest` failure on `HEAD` before this phase's
+changes — not a Phase 3 regression), frontend lint, tests (96.49% statement
+coverage), and production build. Evidence recorded in
+`docs/verification/phase-3.md`.
+
+Repository gate update (2026-08-30): P3-040 through P3-100 plus P3-150 and the
+orchestrator/worker-port refactor are complete on
+`feat/phase-3-catalog-persistence`. Full local suite is green except for the
+pre-existing architecture-test violation also present on `HEAD`. Remaining
+before the `CP-3` closeout: P3-170 (final verification + closeout PR). GitHub
+Actions remains deferred to final deployment readiness.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.
