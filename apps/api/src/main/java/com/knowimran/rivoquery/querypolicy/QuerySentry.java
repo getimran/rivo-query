@@ -2,8 +2,6 @@ package com.knowimran.rivoquery.querypolicy;
 
 import com.knowimran.rivoquery.catalog.AuthorizedCatalogSlice;
 import com.knowimran.rivoquery.connection.DatabaseKind;
-import com.knowimran.rivoquery.generation.AmbiguityStatus;
-import com.knowimran.rivoquery.generation.SqlProposal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +19,7 @@ public class QuerySentry {
     }
 
     public ApprovedQuery evaluate(
-            SqlProposal proposal,
+            ProposedQuery proposal,
             AuthorizedCatalogSlice catalogSlice,
             DatabaseKind dialect,
             QueryPolicy policy) throws QueryPolicyException {
@@ -31,7 +29,7 @@ public class QuerySentry {
         Objects.requireNonNull(dialect, "dialect");
         Objects.requireNonNull(policy, "policy");
 
-        if (proposal.ambiguityStatus() != AmbiguityStatus.READY) {
+        if (proposal.ambiguityStatus() != ProposedQuery.AmbiguityStatus.READY) {
             throw new QueryPolicyException("proposal is not ready for evaluation: " + proposal.ambiguityStatus());
         }
 

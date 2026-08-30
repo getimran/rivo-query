@@ -11,6 +11,7 @@ import com.knowimran.rivoquery.identity.ActorContext;
 import com.knowimran.rivoquery.identity.ConnectionPermission;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.util.Objects;
+import java.util.Optional;
 
 public class SchemaQueryService {
     private final CatalogRepository catalogRepository;
@@ -37,5 +38,13 @@ public class SchemaQueryService {
         }
         actor.requireWorkspace(workspaceId);
         return catalogRepository.findObjects(workspaceId, connectionId, cursor, limit);
+    }
+
+    public Optional<SchemaSnapshot> currentSnapshot(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(workspaceId, "workspaceId");
+        Objects.requireNonNull(connectionId, "connectionId");
+        actor.requireWorkspace(workspaceId);
+        return catalogRepository.findCurrentSnapshot(workspaceId, connectionId);
     }
 }
