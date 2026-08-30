@@ -32,7 +32,7 @@ public class SchemaRefreshOrchestrator {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public void refreshSchema(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SchemaDiscoveryPort.DiscoveryException {
+    public String refreshSchema(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SchemaDiscoveryPort.DiscoveryException {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
@@ -69,5 +69,6 @@ public class SchemaRefreshOrchestrator {
             worker.fail(operationId);
             throw new SchemaDiscoveryPort.DiscoveryException("refresh failed: " + e.getMessage(), e);
         }
+        return operationId;
     }
 }

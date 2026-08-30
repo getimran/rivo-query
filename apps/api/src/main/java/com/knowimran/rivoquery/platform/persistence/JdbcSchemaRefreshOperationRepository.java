@@ -83,7 +83,8 @@ public class JdbcSchemaRefreshOperationRepository implements SchemaRefreshOperat
                    claimed_at, lease_expires_at, fencing_token, attempt, max_attempts,
                    retry_backoff_ms, created_at, updated_at
             FROM schema_refresh_operations
-            WHERE connection_id = ?
+            WHERE workspace_id = ?
+              AND connection_id = ?
               AND state = 'PENDING'
               AND (lease_expires_at IS NULL OR lease_expires_at < ?)
             ORDER BY created_at
@@ -181,10 +182,11 @@ public class JdbcSchemaRefreshOperationRepository implements SchemaRefreshOperat
     }
 
     @Override
-    public List<SchemaRefreshOperation> findPending(String connectionId, Instant before) {
+    public List<SchemaRefreshOperation> findPending(WorkspaceId workspaceId, String connectionId, Instant before) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
         Objects.requireNonNull(before, "before");
-        return jdbcTemplate.query(FIND_PENDING, ROW_MAPPER, connectionId, Timestamp.from(before));
+        return jdbcTemplate.query(FIND_PENDING, ROW_MAPPER, workspaceId.value(), connectionId, Timestamp.from(before));
     }
 
     @Override

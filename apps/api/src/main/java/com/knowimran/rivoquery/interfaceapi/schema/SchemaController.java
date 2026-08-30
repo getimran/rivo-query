@@ -116,22 +116,18 @@ public class SchemaController implements SchemaApi {
         }
 
         try {
-            refreshService.refresh(actor, workspaceId, connId);
+            String operationId = refreshService.refresh(actor, workspaceId, connId);
+            SchemaRefreshOperation created = refreshOperations.findById(operationId)
+                    .orElseThrow(() -> new SchemaRefreshOperationNotFoundException());
+            idempotency.complete(actor.workspaceId(), actor.actorId(), idempotencyKey, Optional.of(created.operationId()));
+            return ResponseEntity.accepted()
+                    .header("Location", "/api/v1/connections/" + connectionId + "/schema/operations/" + created.operationId())
+                    .header("X-Request-Id", xRequestId != null ? xRequestId : generateRequestId())
+                    .body(toOperation(created));
         } catch (SchemaRefreshFailedException e) {
             idempotency.rollback(actor.workspaceId(), actor.actorId(), idempotencyKey);
             throw e;
         }
-
-        SchemaRefreshOperation created = refreshOperations.findPending(connId.value(), OffsetDateTime.now().toInstant())
-                .stream().findFirst()
-                .orElseThrow(() -> new SchemaRefreshOperationNotFoundException());
-
-        idempotency.complete(actor.workspaceId(), actor.actorId(), idempotencyKey, Optional.of(created.operationId()));
-
-        return ResponseEntity.accepted()
-                .header("Location", "/api/v1/connections/" + connectionId + "/schema/operations/" + created.operationId())
-                .header("X-Request-Id", xRequestId != null ? xRequestId : generateRequestId())
-                .body(toOperation(created));
     }
 
     private void requireViewSchema(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) {

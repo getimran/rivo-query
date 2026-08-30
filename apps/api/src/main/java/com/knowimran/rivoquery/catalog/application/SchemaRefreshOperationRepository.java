@@ -1,6 +1,7 @@
 package com.knowimran.rivoquery.catalog.application;
 
 import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
+import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +19,7 @@ public interface SchemaRefreshOperationRepository {
 
     int retry(String operationId, int newAttempt, int newRetryBackoffMs, long expectedFencingToken);
 
-    List<SchemaRefreshOperation> findPending(String connectionId, Instant before);
+    List<SchemaRefreshOperation> findPending(WorkspaceId workspaceId, String connectionId, Instant before);
 
     int resetExpiredRunning(Instant now);
 }

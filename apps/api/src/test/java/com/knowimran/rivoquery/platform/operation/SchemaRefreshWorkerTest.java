@@ -180,7 +180,7 @@ class SchemaRefreshWorkerTest {
                 Instant.now().minusSeconds(120)
         ));
         SchemaRefreshWorker worker = new SchemaRefreshWorker(repo, Clock.systemUTC(), "worker-1");
-        List<SchemaRefreshOperation> pending = worker.findPending("con_01J6MZ4H9ST5N7YQ2C8W3V0KFX");
+        List<SchemaRefreshOperation> pending = worker.findPending(new WorkspaceId("wsp_01J6MZ4H9ST5N7YQ2C8W3V0KFX"), "con_01J6MZ4H9ST5N7YQ2C8W3V0KFX");
         assertThat(pending).hasSize(1);
         assertThat(pending.get(0).operationId()).isEqualTo("op_1");
     }
@@ -282,10 +282,10 @@ class SchemaRefreshWorkerTest {
         }
 
         @Override
-        public List<SchemaRefreshOperation> findPending(String connectionId, Instant before) {
+        public List<SchemaRefreshOperation> findPending(WorkspaceId workspaceId, String connectionId, Instant before) {
             List<SchemaRefreshOperation> result = new ArrayList<>();
             for (SchemaRefreshOperation op : operations) {
-                if (op.connectionId().value().equals(connectionId) && "PENDING".equals(op.state())) {
+                if (op.workspaceId().equals(workspaceId) && op.connectionId().value().equals(connectionId) && "PENDING".equals(op.state())) {
                     result.add(op);
                 }
             }

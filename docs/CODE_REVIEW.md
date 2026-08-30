@@ -2,6 +2,14 @@
 
 Review correctness and security before style.
 
+## Pre-PR requirement
+
+Code review is mandatory before raising or updating any pull request. Every PR
+must be reviewed for correctness, security, architecture, and test coverage
+before it is opened or re-opened. Issues identified during review must be fixed
+in the same branch before merge; do not defer review findings to follow-up PRs
+unless explicitly approved.
+
 ## Blocking findings
 
 - Any path allowing raw SQL or model output to reach execution without QuerySentry approval.

@@ -50,9 +50,10 @@ public class SchemaRefreshService {
             Math.min(policy.maxColumnsPerObject(), 200)
         );
         SchemaSnapshot raw = discoveryPort.discover(connection, workspaceId, connectionId, safePolicy);
+        DatabaseKind kind = discoveryPort.kind();
         List<SchemaObject> normalized = new ArrayList<>();
         for (SchemaObject object : raw.objects()) {
-            if (SystemObjectDenylist.isSystemSchema(discoveryPort.kind(), object.canonicalName().schema())) {
+            if (SystemObjectDenylist.isSystemSchema(kind, object.canonicalName().schema())) {
                 continue;
             }
             List<SchemaColumn> columns = new ArrayList<>();
@@ -66,7 +67,7 @@ public class SchemaRefreshService {
                     classification
                 ));
             }
-            CanonicalQualifiedName canonical = CanonicalizationService.canonicalize(discoveryPort.kind(), object.rawName());
+            CanonicalQualifiedName canonical = CanonicalizationService.canonicalize(kind, object.rawName());
             normalized.add(new SchemaObject(
                 object.rawName(),
                 canonical,

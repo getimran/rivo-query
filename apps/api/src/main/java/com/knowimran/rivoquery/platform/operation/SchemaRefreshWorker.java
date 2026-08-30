@@ -3,6 +3,7 @@ package com.knowimran.rivoquery.platform.operation;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshWorkerPort;
 import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
+import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -80,8 +81,9 @@ public class SchemaRefreshWorker implements SchemaRefreshWorkerPort {
                 });
     }
 
-    public List<SchemaRefreshOperation> findPending(String connectionId) {
+    public List<SchemaRefreshOperation> findPending(WorkspaceId workspaceId, String connectionId) {
+        Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
-        return operationRepository.findPending(connectionId, Instant.now(clock));
+        return operationRepository.findPending(workspaceId, connectionId, Instant.now(clock));
     }
 }

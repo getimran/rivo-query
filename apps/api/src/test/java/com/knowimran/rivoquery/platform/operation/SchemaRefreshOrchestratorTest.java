@@ -325,7 +325,7 @@ class SchemaRefreshOrchestratorTest {
         }
 
         @Override
-        public List<SchemaRefreshOperation> findPending(String connectionId, Instant before) {
+        public List<SchemaRefreshOperation> findPending(WorkspaceId workspaceId, String connectionId, Instant before) {
             return List.of();
         }
 

@@ -26,13 +26,21 @@ class SchemaDiscoverySelector implements SchemaDiscoveryPort {
     public SchemaSnapshot discover(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, DiscoveryPolicy policy) throws DiscoveryException {
         DatabaseKind kind = detectKind(connection);
         currentKind.set(kind);
-        if (kind == DatabaseKind.POSTGRESQL) {
-            return postgresql.discover(connection, workspaceId, connectionId, policy);
+        try {
+            if (kind == DatabaseKind.POSTGRESQL) {
+                return postgresql.discover(connection, workspaceId, connectionId, policy);
+            }
+            if (kind == DatabaseKind.MYSQL) {
+                return mysql.discover(connection, workspaceId, connectionId, policy);
+            }
+            throw new DiscoveryException("unsupported database kind: " + kind);
+        } catch (Exception e) {
+            currentKind.remove();
+            if (e instanceof DiscoveryException de) {
+                throw de;
+            }
+            throw new DiscoveryException("discovery failed", e);
         }
-        if (kind == DatabaseKind.MYSQL) {
-            return mysql.discover(connection, workspaceId, connectionId, policy);
-        }
-        throw new DiscoveryException("unsupported database kind: " + kind);
     }
 
     @Override
@@ -41,6 +49,7 @@ class SchemaDiscoverySelector implements SchemaDiscoveryPort {
         if (kind == null) {
             throw new IllegalStateException("kind() called before discover()");
         }
+        currentKind.remove();
         return kind;
     }
 
