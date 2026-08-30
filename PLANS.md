@@ -305,6 +305,17 @@ Acceptance:
 - Model-supplied limits never override stricter server policy.
 - Prompt-injection cases from schema metadata and user questions are covered.
 
+Phase 4 design gate update (2026-08-30): product decisions approved in
+`docs/product-decisions/phase-4.md` (reference OpenAI-compatible adapter
+configuration, provider retention defaults, QUERY does not implicitly permit
+schema visibility). QuerySentry parser/canonicalization ADR accepted as
+`docs/adrs/0014-querysentry-parser-canonicalization.md`. JSQLParser selected as
+the dialect-capable parser with 500 ms deadline, 64 KiB input limit, 50-table /
+200-column / 10-join / 5-CTE complexity limits, round-trip serialization/reparse
+after limit transformation, and explicit rejection of recursive CTEs, set
+operations outside approved branches, and unknown dialect features. Phase 4
+implementation is active on `feat/phase-4-querysentry`.
+
 ## Phase 5 — Execution and audit
 
 Execute only QuerySentry-approved SQL through read-only target credentials with query timeout, row cap, cancellation, concurrency isolation, and normalized results.
