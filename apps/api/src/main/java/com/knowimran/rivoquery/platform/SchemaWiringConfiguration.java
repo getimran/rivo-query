@@ -14,14 +14,13 @@ import com.knowimran.rivoquery.connection.application.ConnectionProfileRepositor
 import com.knowimran.rivoquery.connection.application.ConnectionRepository;
 import com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator;
 import com.knowimran.rivoquery.connection.application.secret.SecretOperations;
-import com.knowimran.rivoquery.connection.connector.ConnectorDialect;
+import com.knowimran.rivoquery.platform.connector.ConnectorDialect;
 import com.knowimran.rivoquery.platform.connector.MysqlConnectorDialect;
 import com.knowimran.rivoquery.platform.connector.PostgresqlConnectorDialect;
 import com.knowimran.rivoquery.platform.connector.mysql.MysqlSchemaDiscovery;
 import com.knowimran.rivoquery.platform.connector.postgresql.PostgresqlSchemaDiscovery;
 import com.knowimran.rivoquery.platform.operation.SchemaRefreshJdbcConnectionFactory;
-import com.knowimran.rivoquery.platform.operation.SchemaRefreshOrchestrator;
-import com.knowimran.rivoquery.platform.operation.SchemaRefreshWorker;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshWorkerPort;
 import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,10 +54,10 @@ public class SchemaWiringConfiguration {
     }
 
     @Bean
-    SchemaRefreshWorker schemaRefreshWorker(
+    SchemaRefreshWorkerPort schemaRefreshWorker(
             SchemaRefreshOperationRepository operationRepository,
             Clock clock) {
-        return new SchemaRefreshWorker(operationRepository, clock, "schema-refresh-worker");
+        return new com.knowimran.rivoquery.platform.operation.SchemaRefreshWorker(operationRepository, clock, "schema-refresh-worker");
     }
 
     @Bean
@@ -71,19 +70,19 @@ public class SchemaWiringConfiguration {
     }
 
     @Bean
-    SchemaRefreshOrchestrator schemaRefreshOrchestrator(
-            SchemaRefreshWorker worker,
+    com.knowimran.rivoquery.catalog.application.SchemaRefreshOrchestrator schemaRefreshOrchestrator(
+            SchemaRefreshWorkerPort worker,
             SchemaRefreshService refreshService,
             CatalogRepository catalogRepository,
             SchemaRefreshOperationRepository operationRepository,
             SchemaRefreshConnectionFactory connectionFactory,
             Clock clock) {
-        return new SchemaRefreshOrchestrator(
+        return new com.knowimran.rivoquery.catalog.application.SchemaRefreshOrchestrator(
                 worker, refreshService, catalogRepository, operationRepository, connectionFactory, clock);
     }
 
     @Bean
-    SchemaRefreshRequestService schemaRefreshRequestService(SchemaRefreshOrchestrator orchestrator) {
+    SchemaRefreshRequestService schemaRefreshRequestService(com.knowimran.rivoquery.catalog.application.SchemaRefreshOrchestrator orchestrator) {
         return new SchemaRefreshRequestService(orchestrator);
     }
 }

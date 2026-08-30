@@ -3,13 +3,13 @@ package com.knowimran.rivoquery.platform.operation;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshConnectionFactory;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.connection.DatabaseConnection;
 import com.knowimran.rivoquery.connection.application.ConnectionProfileRepository;
 import com.knowimran.rivoquery.connection.application.ConnectionRepository;
-import com.knowimran.rivoquery.connection.application.DatabaseConnection;
 import com.knowimran.rivoquery.connection.application.secret.SecretMaterialConsumer;
 import com.knowimran.rivoquery.connection.application.secret.SecretOperations;
 import com.knowimran.rivoquery.connection.application.secret.SecretUsePurpose;
-import com.knowimran.rivoquery.connection.connector.ConnectorDialect;
+import com.knowimran.rivoquery.platform.connector.ConnectorDialect;
 import com.knowimran.rivoquery.identity.ActorContext;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.sql.Connection;
@@ -18,14 +18,14 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Objects;
 
-final class SchemaRefreshJdbcConnectionFactory implements SchemaRefreshConnectionFactory {
+public final class SchemaRefreshJdbcConnectionFactory implements SchemaRefreshConnectionFactory {
     private final ConnectionRepository connections;
     private final ConnectionProfileRepository profiles;
     private final SecretOperations secretOperations;
     private final ConnectorDialect postgresqlDialect;
     private final ConnectorDialect mysqlDialect;
 
-    SchemaRefreshJdbcConnectionFactory(
+    public SchemaRefreshJdbcConnectionFactory(
             ConnectionRepository connections,
             ConnectionProfileRepository profiles,
             SecretOperations secretOperations,
@@ -53,6 +53,7 @@ final class SchemaRefreshJdbcConnectionFactory implements SchemaRefreshConnectio
         var target = dialect.buildConnectionTarget(profile.endpoint());
         Map<String, String> properties = Map.copyOf(target.properties());
         Connection[] result = new Connection[1];
+        java.sql.SQLException[] error = new java.sql.SQLException[1];
         secretOperations.consume(actor, connectionId, SecretUsePurpose.CONNECTION_TEST, new com.knowimran.rivoquery.connection.application.Deadline(java.time.Instant.now().plusSeconds(30)), material -> {
             String credential = new String(material, java.nio.charset.StandardCharsets.UTF_8);
             int sep = credential.indexOf('\0');
@@ -62,8 +63,15 @@ final class SchemaRefreshJdbcConnectionFactory implements SchemaRefreshConnectio
             driverProperties.putAll(properties);
             driverProperties.setProperty("user", username);
             driverProperties.setProperty("password", password);
-            result[0] = DriverManager.getConnection(target.jdbcUrl(), driverProperties);
+            try {
+                result[0] = DriverManager.getConnection(target.jdbcUrl(), driverProperties);
+            } catch (java.sql.SQLException e) {
+                error[0] = e;
+            }
         });
+        if (error[0] != null) {
+            throw new java.sql.SQLException("failed to open connection for " + connectionId, error[0]);
+        }
         if (result[0] == null) {
             throw new SQLException("failed to open connection for " + connectionId);
         }

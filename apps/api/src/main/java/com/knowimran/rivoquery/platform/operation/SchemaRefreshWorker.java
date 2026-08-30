@@ -1,13 +1,14 @@
 package com.knowimran.rivoquery.platform.operation;
 
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshWorkerPort;
 import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-public class SchemaRefreshWorker {
+public class SchemaRefreshWorker implements SchemaRefreshWorkerPort {
     private static final int DEFAULT_LEASE_SECONDS = 30;
     private static final int MAX_BACKOFF_SECONDS = 60;
 

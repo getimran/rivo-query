@@ -3,6 +3,7 @@ package com.knowimran.rivoquery.interfaceapi.schema;
 import com.knowimran.rivoquery.catalog.SchemaObjectPage;
 import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
 import com.knowimran.rivoquery.catalog.application.SchemaQueryService;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshFailedException;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshRequestService;
 import com.knowimran.rivoquery.connection.ConnectionId;
@@ -12,6 +13,7 @@ import com.knowimran.rivoquery.identity.ConnectionPermission;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import com.knowimran.rivoquery.identity.WorkspaceRole;
 import com.knowimran.rivoquery.interfaceapi.generated.api.SchemaApi;
+import com.knowimran.rivoquery.interfaceapi.schema.SchemaAccessDeniedException;
 import com.knowimran.rivoquery.interfaceapi.generated.model.Operation;
 import com.knowimran.rivoquery.interfaceapi.generated.model.OperationAction;
 import com.knowimran.rivoquery.interfaceapi.generated.model.OperationLinks;
@@ -98,10 +100,10 @@ public class SchemaController implements SchemaApi {
         ConnectionId connId = new ConnectionId(connectionId);
 
         String fingerprint = RequestFingerprint.of(connectionId, idempotencyKey);
-        Optional<com.knowimran.rivoquery.interfaceapi.support.IdempotencyRecord> reservation =
+        Optional<com.knowimran.rivoquery.connection.application.IdempotencyRecord> reservation =
                 idempotency.reserve(actor.workspaceId(), actor.actorId(), idempotencyKey, "refreshSchema", fingerprint);
         if (reservation.isPresent()) {
-            com.knowimran.rivoquery.interfaceapi.support.IdempotencyRecord record = reservation.get();
+            com.knowimran.rivoquery.connection.application.IdempotencyRecord record = reservation.get();
             if (record.operationId().isPresent()) {
                 SchemaRefreshOperation refreshOp = refreshOperations.findById(record.operationId().get())
                         .orElseThrow(() -> new SchemaRefreshOperationNotFoundException());
@@ -115,7 +117,7 @@ public class SchemaController implements SchemaApi {
 
         try {
             refreshService.refresh(actor, workspaceId, connId);
-        } catch (Exception e) {
+        } catch (SchemaRefreshFailedException e) {
             idempotency.rollback(actor.workspaceId(), actor.actorId(), idempotencyKey);
             throw e;
         }

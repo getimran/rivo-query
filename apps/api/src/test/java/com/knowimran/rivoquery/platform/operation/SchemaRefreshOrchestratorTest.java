@@ -6,6 +6,8 @@ import com.knowimran.rivoquery.catalog.application.CatalogRepository;
 import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshConnectionFactory;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshWorkerPort;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshOrchestrator;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshService;
 import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort.DiscoveryException;
 import com.knowimran.rivoquery.connection.ConnectionId;
@@ -101,8 +103,32 @@ class SchemaRefreshOrchestratorTest {
                 return null;
             }
         };
-        FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator);
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(opRepo, Clock.systemUTC(), "worker-1");
+        FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator, false);
+        SchemaRefreshWorkerPort worker = new SchemaRefreshWorkerPort() {
+            @Override
+            public boolean claim(String operationId) {
+                return opRepo.findById(operationId)
+                        .filter(operation -> "PENDING".equals(operation.state()))
+                        .map(operation -> {
+                            long currentToken = operation.fencingToken();
+                            long newToken = currentToken + 1;
+                            Instant leaseExpiresAt = Instant.now(Clock.systemUTC()).plusSeconds(30);
+                            int updated = opRepo.claim(operationId, "worker-1", leaseExpiresAt, currentToken, newToken);
+                            return updated == 1;
+                        })
+                        .orElse(false);
+            }
+
+            @Override
+            public void complete(String operationId) {
+                opRepo.updateState(operationId, "SUCCEEDED");
+            }
+
+            @Override
+            public void fail(String operationId) {
+                opRepo.updateState(operationId, "FAILED");
+            }
+        };
         SchemaRefreshConnectionFactory connectionFactory = new SchemaRefreshConnectionFactory() {
             @Override
             public Connection open(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SQLException {
@@ -180,8 +206,32 @@ class SchemaRefreshOrchestratorTest {
                 return null;
             }
         };
-        FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator);
-        SchemaRefreshWorker worker = new SchemaRefreshWorker(opRepo, Clock.systemUTC(), "worker-1");
+        FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator, true);
+        SchemaRefreshWorkerPort worker = new SchemaRefreshWorkerPort() {
+            @Override
+            public boolean claim(String operationId) {
+                return opRepo.findById(operationId)
+                        .filter(operation -> "PENDING".equals(operation.state()))
+                        .map(operation -> {
+                            long currentToken = operation.fencingToken();
+                            long newToken = currentToken + 1;
+                            Instant leaseExpiresAt = Instant.now(Clock.systemUTC()).plusSeconds(30);
+                            int updated = opRepo.claim(operationId, "worker-1", leaseExpiresAt, currentToken, newToken);
+                            return updated == 1;
+                        })
+                        .orElse(false);
+            }
+
+            @Override
+            public void complete(String operationId) {
+                opRepo.updateState(operationId, "SUCCEEDED");
+            }
+
+            @Override
+            public void fail(String operationId) {
+                opRepo.updateState(operationId, "FAILED");
+            }
+        };
         SchemaRefreshConnectionFactory connectionFactory = new SchemaRefreshConnectionFactory() {
             @Override
             public Connection open(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SQLException {
@@ -286,12 +336,18 @@ class SchemaRefreshOrchestratorTest {
     }
 
     private static class FakeRefreshService extends SchemaRefreshService {
-        public FakeRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort, com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator idGenerator) {
+        private final boolean throwOnRefresh;
+
+        public FakeRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort, com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator idGenerator, boolean throwOnRefresh) {
             super(catalogRepository, discoveryPort, idGenerator);
+            this.throwOnRefresh = throwOnRefresh;
         }
 
         @Override
         public SchemaSnapshot refresh(Connection connection, WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws DiscoveryException {
+            if (throwOnRefresh) {
+                throw new DiscoveryException("simulated failure");
+            }
             return null;
         }
     }

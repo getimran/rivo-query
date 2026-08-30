@@ -13,6 +13,8 @@ import com.knowimran.rivoquery.identity.AuthorizationDeniedException;
 import com.knowimran.rivoquery.interfaceapi.auth.AuthenticationFailedException;
 import com.knowimran.rivoquery.interfaceapi.connection.ConnectionEnableNotSupportedException;
 import com.knowimran.rivoquery.interfaceapi.connection.ConnectionEndpointUpdateNotSupportedException;
+import com.knowimran.rivoquery.interfaceapi.schema.SchemaAccessDeniedException;
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshFailedException;
 import com.knowimran.rivoquery.interfaceapi.generated.model.ProblemDetails;
 import com.knowimran.rivoquery.interfaceapi.operation.OperationNotFoundException;
 import com.knowimran.rivoquery.interfaceapi.permission.MembershipNotEligibleException;
@@ -520,6 +522,28 @@ public final class SafeProblemHandler {
             case CONCURRENCY -> handleInvalidConnectionTransition(request);
             case INTERNAL -> handleUnexpected(request);
         };
+    }
+
+    @ExceptionHandler(SchemaAccessDeniedException.class)
+    ResponseEntity<ProblemDetails> handleSchemaAccessDenied(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.FORBIDDEN,
+                URI.create("urn:rivoquery:problem:schema-access-denied"),
+                "Schema access denied",
+                "The caller is not authorized to view this connection's schema.",
+                "SCHEMA_ACCESS_DENIED");
+    }
+
+    @ExceptionHandler(SchemaRefreshFailedException.class)
+    ResponseEntity<ProblemDetails> handleSchemaRefreshFailed(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.BAD_GATEWAY,
+                URI.create("urn:rivoquery:problem:schema-refresh-failed"),
+                "Schema refresh failed",
+                "The schema refresh operation could not be completed.",
+                "SCHEMA_REFRESH_FAILED");
     }
 
     // ------------------------------------------------------------------

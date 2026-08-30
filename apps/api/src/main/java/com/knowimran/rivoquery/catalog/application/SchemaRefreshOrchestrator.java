@@ -1,23 +1,16 @@
-package com.knowimran.rivoquery.platform.operation;
+package com.knowimran.rivoquery.catalog.application;
 
 import com.knowimran.rivoquery.catalog.SchemaRefreshOperation;
-import com.knowimran.rivoquery.catalog.application.CatalogRepository;
-import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort;
-import com.knowimran.rivoquery.catalog.application.SchemaRefreshConnectionFactory;
-import com.knowimran.rivoquery.catalog.application.SchemaRefreshOperationRepository;
-import com.knowimran.rivoquery.catalog.application.SchemaRefreshService;
-import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort.DiscoveryException;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.identity.ActorContext;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
 
 public class SchemaRefreshOrchestrator {
-    private final SchemaRefreshWorker worker;
+    private final SchemaRefreshWorkerPort worker;
     private final SchemaRefreshService refreshService;
     private final CatalogRepository catalogRepository;
     private final SchemaRefreshOperationRepository operationRepository;
@@ -25,7 +18,7 @@ public class SchemaRefreshOrchestrator {
     private final Clock clock;
 
     public SchemaRefreshOrchestrator(
-            SchemaRefreshWorker worker,
+            SchemaRefreshWorkerPort worker,
             SchemaRefreshService refreshService,
             CatalogRepository catalogRepository,
             SchemaRefreshOperationRepository operationRepository,
@@ -39,7 +32,7 @@ public class SchemaRefreshOrchestrator {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
-    public void refreshSchema(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws DiscoveryException {
+    public void refreshSchema(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SchemaDiscoveryPort.DiscoveryException {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
@@ -60,7 +53,7 @@ public class SchemaRefreshOrchestrator {
                 Instant.now(clock)
         ));
         if (!worker.claim(operationId)) {
-            throw new DiscoveryException("failed to claim refresh operation");
+            throw new SchemaDiscoveryPort.DiscoveryException("failed to claim refresh operation");
         }
         try (SchemaRefreshConnectionFactory.Wrapped wrapped = connectionFactory.openWrapped(actor, workspaceId, connectionId)) {
             refreshService.refresh(wrapped.connection(), workspaceId, connectionId,
@@ -74,7 +67,7 @@ public class SchemaRefreshOrchestrator {
             worker.complete(operationId);
         } catch (Exception e) {
             worker.fail(operationId);
-            throw new DiscoveryException("refresh failed: " + e.getMessage(), e);
+            throw new SchemaDiscoveryPort.DiscoveryException("refresh failed: " + e.getMessage(), e);
         }
     }
 }

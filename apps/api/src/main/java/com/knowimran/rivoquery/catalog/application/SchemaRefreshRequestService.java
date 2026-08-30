@@ -1,5 +1,6 @@
 package com.knowimran.rivoquery.catalog.application;
 
+import com.knowimran.rivoquery.catalog.application.SchemaRefreshFailedException;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.identity.ActorContext;
 import com.knowimran.rivoquery.identity.WorkspaceId;
@@ -12,11 +13,15 @@ public class SchemaRefreshRequestService {
         this.orchestrator = Objects.requireNonNull(orchestrator, "orchestrator");
     }
 
-    public void refresh(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) throws SchemaDiscoveryPort.DiscoveryException {
+    public void refresh(ActorContext actor, WorkspaceId workspaceId, ConnectionId connectionId) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
         actor.requireWorkspace(workspaceId);
-        orchestrator.refreshSchema(actor, workspaceId, connectionId);
+        try {
+            orchestrator.refreshSchema(actor, workspaceId, connectionId);
+        } catch (SchemaDiscoveryPort.DiscoveryException e) {
+            throw new SchemaRefreshFailedException("Schema refresh failed", e);
+        }
     }
 }

@@ -1,8 +1,8 @@
 package com.knowimran.rivoquery.platform;
 
 import com.knowimran.rivoquery.catalog.application.SchemaDiscoveryPort;
-import com.knowimran.rivoquery.catalog.application.SchemaObjectPage;
-import com.knowimran.rivoquery.catalog.application.SchemaSnapshot;
+import com.knowimran.rivoquery.catalog.SchemaObjectPage;
+import com.knowimran.rivoquery.catalog.SchemaSnapshot;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
 import com.knowimran.rivoquery.identity.WorkspaceId;
@@ -39,7 +39,7 @@ class SchemaDiscoverySelector implements SchemaDiscoveryPort {
     public DatabaseKind kind() {
         DatabaseKind kind = currentKind.get();
         if (kind == null) {
-            throw new DiscoveryException("kind() called before discover()");
+            throw new IllegalStateException("kind() called before discover()");
         }
         return kind;
     }
