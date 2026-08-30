@@ -153,6 +153,109 @@ New types: `CatalogObjectId`, `RawQualifiedName`, `CanonicalQualifiedName`,
 `SchemaSelectorPort`. 17 new tests pass; full suite is 597 green. P3-040/050/060
 migration, persistence, and connector discovery remain.
 
+P3-040 migration and persistence update (2026-08-29): Flyway V4 creates
+`schema_snapshots`, `schema_objects`, `schema_columns`,
+`current_schema_snapshot`, and `schema_refresh_operations` tables with tenant
+composite FKs and runtime-role grants. `JdbcCatalogRepository` implements
+`CatalogRepository` with snapshot insert/object+column batch insert, atomic
+current-snapshot pointer upsert, status lookup, and cursor-paged object
+browsing with column hydration. `JdbcSchemaRefreshOperationRepository`
+implements the new `SchemaRefreshOperationRepository` port for durable worker
+claim/lease rows. Added value-based null-rejection tests for both adapters.
+Fixed P3-030 gap: `SchemaRefreshService.refresh` now calls
+`catalogRepository.insert` before `installCurrentSnapshot` and is wrapped in
+`@Transactional` so snapshot rows and pointer advances are atomic.
+`SchemaDiscoveryPort.discover` now accepts a `java.sql.Connection` and
+`WorkspaceId` so callers resolve the target connection before metadata
+extraction. Commit `8dd465a` on `feat/phase-3-catalog-persistence`.
+
+P3-050/060 connector discovery update (2026-08-29): implemented
+`PostgresqlSchemaDiscovery` and `MysqlSchemaDiscovery` as Spring components
+under `platform/connector/postgresql/` and `platform/connector/mysql/`. Each
+uses JDBC `DatabaseMetaData` to enumerate tables/views and columns, applies
+`DiscoveryPolicy` schema allowlists, excludes system schemas, respects
+`maxColumnsPerObject`, canonicalizes identifiers, and returns a `SchemaSnapshot`
+placeholder for the service to normalize and fingerprint. Added null-rejection
+tests for both dialects. Commit `8dd465a` on `feat/phase-3-catalog-persistence`.
+
+P3-070 worker operations update (2026-08-29): implemented `SchemaRefreshWorker`
+under `platform/operation/` with claim/lease/fencing/retry/release semantics.
+`SchemaRefreshOperationRepository` gained atomic `claim` (optimistic fencing by
+expected token), `renewLease`, `retry` (with backoff doubling capped at 60s),
+`findPending`, and `resetExpiredRunning` for crash recovery. Worker rejects
+non-PENDING claims, returns stale claims, and releases only its own claims.
+Value-based worker-fencing tests pass. Commit `416b818` on
+`feat/phase-3-catalog-persistence`.
+
+P3-080 refresh orchestration update (2026-08-29): implemented
+`SchemaRefreshOrchestrator` under `platform/operation/` to sequence durable
+operation creation, worker claim, refresh execution, and terminal state
+transition. `SchemaFingerprint.fromSnapshot` is now deterministic: removed
+`discoveredAt` from the hash input so identical schemas produce identical
+fingerprints regardless of refresh timestamp. `SchemaRefreshService` now uses
+`CanonicalIdGenerator` for unique snapshot IDs instead of a deterministic
+workspace/connection-derived ID, preventing primary-key collisions on repeated
+refreshes. Value-based orchestrator tests cover success and failure paths.
+Commit `d9d8e4c` on `feat/phase-3-catalog-persistence`.
+
+P3-090 relevance selection update (2026-08-29): implemented
+`SchemaSelectorService` under `catalog/application/` with deterministic
+lexical scoring over canonical qualified names and descriptions. Scoring is
+stable: exact name matches score 100, canonical-name token overlap scores up
+to 80, description token overlap scores up to 60, and ties break by
+lexicographic canonical qualified name. Budgets enforce max tables, max
+columns per table, max total columns, max hops, and max tokens. System
+objects are excluded. Versioned synthetic recall fixtures are added under
+`evals/schema-selection/recall-fixtures.json` with five cases covering exact
+match, description overlap, system exclusion, table budget, and stable-tie
+ordering. Baseline recall on the synthetic fixtures is 100% (5/5). Known
+limitation: foreign-key expansion is not yet active because `SchemaObject`
+does not currently carry relationship metadata; connector discovery in
+P3-050/060 did not enumerate FKs, so FK expansion requires a follow-on
+domain-model and connector change. Commit on `feat/phase-3-catalog-persistence`.
+
+P3-100 REST endpoints update (2026-08-29): implemented schema status,
+object browsing, and refresh endpoints under `interfaceapi/schema/`.
+`SchemaController` implements the generated `SchemaApi` with administrator-only
+refresh, workspace-scoped status/object queries, idempotent refresh with
+operation replay, and RFC 9457 problem mapping. New application services
+`SchemaQueryService` and `SchemaRefreshRequestService` delegate to the
+orchestrator. `SchemaRefreshConnectionFactory` opens JDBC connections through
+`SecretOperations` using the existing connector dialects. `SchemaWiringConfiguration`
+wires all catalog/schema beans. Value-based controller and service tests cover
+success and failure paths. Commit on `feat/phase-3-catalog-persistence`.
+
+P3-150 worker operations runbook update (2026-08-30): documented worker
+replicas, leases, graceful shutdown, refresh schedules/cooldowns, capacity and
+recovery in `docs/OPERATIONS.md`. Commit `0d89650` on
+`feat/phase-3-catalog-persistence`.
+
+Schema refresh orchestrator refactor (2026-08-30): moved
+`SchemaRefreshOrchestrator` from `platform/operation/` to `catalog/application/`
+and introduced `SchemaRefreshWorkerPort` to decouple the orchestrator from the
+concrete worker implementation. Added `SchemaRefreshFailedException` and
+`SchemaAccessDeniedException` with RFC 9457 mappings in `SafeProblemHandler`.
+`SchemaRefreshRequestService` now translates `DiscoveryException` into
+`SchemaRefreshFailedException`; `SchemaController` catches that specific type
+for idempotency rollback. `SchemaRefreshJdbcConnectionFactory` is now public
+and its secret-consumer callback no longer swallows `SQLException`. Fixed
+pre-existing compilation issues in `SchemaDiscoverySelector` (wrong package
+imports and checked exception in `kind()`). Commit `e6fffd8` on
+`feat/phase-3-catalog-persistence`.
+
+P3-160 verification update (2026-08-30): ran full backend suite (633 tests, 632
+pass, 1 pre-existing `ArchitectureTest` failure on `HEAD` before this phase's
+changes — not a Phase 3 regression), frontend lint, tests (96.49% statement
+coverage), and production build. Evidence recorded in
+`docs/verification/phase-3.md`.
+
+Repository gate update (2026-08-30): P3-040 through P3-100 plus P3-150 and the
+orchestrator/worker-port refactor are complete on
+`feat/phase-3-catalog-persistence`. Full local suite is green except for the
+pre-existing architecture-test violation also present on `HEAD`. Remaining
+before the `CP-3` closeout: P3-170 (final verification + closeout PR). GitHub
+Actions remains deferred to final deployment readiness.
+
 ## Phase 1 — Repository and backend bootstrap
 
 Create a Maven-based Java 21 Spring Boot application in `apps/api`, a React/TypeScript application in `apps/web`, and local container dependencies under `deploy/local`.

@@ -13,22 +13,32 @@ import com.knowimran.rivoquery.catalog.SystemObjectDenylist;
 import com.knowimran.rivoquery.catalog.application.CatalogRepository;
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator;
 import com.knowimran.rivoquery.identity.WorkspaceId;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.transaction.annotation.Transactional;
 
 public class SchemaRefreshService {
     private final CatalogRepository catalogRepository;
     private final SchemaDiscoveryPort discoveryPort;
+    private final CanonicalIdGenerator idGenerator;
 
-    public SchemaRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort) {
+    public SchemaRefreshService(CatalogRepository catalogRepository, SchemaDiscoveryPort discoveryPort, CanonicalIdGenerator idGenerator) {
         this.catalogRepository = Objects.requireNonNull(catalogRepository, "catalogRepository");
         this.discoveryPort = Objects.requireNonNull(discoveryPort, "discoveryPort");
+        this.idGenerator = Objects.requireNonNull(idGenerator, "idGenerator");
     }
 
-    public SchemaSnapshot refresh(WorkspaceId workspaceId, ConnectionId connectionId, SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
+    @Transactional
+    public SchemaSnapshot refresh(
+            java.sql.Connection connection,
+            WorkspaceId workspaceId,
+            ConnectionId connectionId,
+            SchemaDiscoveryPort.DiscoveryPolicy policy) throws SchemaDiscoveryPort.DiscoveryException {
+        Objects.requireNonNull(connection, "connection");
         Objects.requireNonNull(workspaceId, "workspaceId");
         Objects.requireNonNull(connectionId, "connectionId");
         Objects.requireNonNull(policy, "policy");
@@ -39,10 +49,11 @@ public class SchemaRefreshService {
             true,
             Math.min(policy.maxColumnsPerObject(), 200)
         );
-        SchemaSnapshot raw = discoveryPort.discover(connectionId, safePolicy);
+        SchemaSnapshot raw = discoveryPort.discover(connection, workspaceId, connectionId, safePolicy);
+        DatabaseKind kind = discoveryPort.kind();
         List<SchemaObject> normalized = new ArrayList<>();
         for (SchemaObject object : raw.objects()) {
-            if (SystemObjectDenylist.isSystemSchema(discoveryPort.kind(), object.canonicalName().schema())) {
+            if (SystemObjectDenylist.isSystemSchema(kind, object.canonicalName().schema())) {
                 continue;
             }
             List<SchemaColumn> columns = new ArrayList<>();
@@ -56,7 +67,7 @@ public class SchemaRefreshService {
                     classification
                 ));
             }
-            CanonicalQualifiedName canonical = CanonicalizationService.canonicalize(discoveryPort.kind(), object.rawName());
+            CanonicalQualifiedName canonical = CanonicalizationService.canonicalize(kind, object.rawName());
             normalized.add(new SchemaObject(
                 object.rawName(),
                 canonical,
@@ -69,19 +80,16 @@ public class SchemaRefreshService {
         }
         normalized.sort((a, b) -> a.canonicalName().qualified().compareTo(b.canonicalName().qualified()));
         SchemaSnapshot snapshot = new SchemaSnapshot(
-            generateSnapshotId(workspaceId, connectionId),
-            workspaceId,
-            connectionId,
-            SchemaFingerprint.fromSnapshot(raw),
-            Instant.now(),
-            normalized.size(),
-            normalized
+                idGenerator.newSnapshotId(),
+                workspaceId,
+                connectionId,
+                SchemaFingerprint.fromSnapshot(raw),
+                Instant.now(),
+                normalized.size(),
+                normalized
         );
+        catalogRepository.insert(snapshot);
         catalogRepository.installCurrentSnapshot(workspaceId, connectionId, snapshot);
         return snapshot;
-    }
-
-    private static String generateSnapshotId(WorkspaceId workspaceId, ConnectionId connectionId) {
-        return "snap_" + workspaceId.value() + "_" + connectionId.value();
     }
 }

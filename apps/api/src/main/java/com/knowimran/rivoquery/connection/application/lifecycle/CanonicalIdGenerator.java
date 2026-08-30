@@ -15,4 +15,6 @@ public interface CanonicalIdGenerator {
     ConnectionId newConnectionId();
 
     OperationId newOperationId();
+
+    String newSnapshotId();
 }

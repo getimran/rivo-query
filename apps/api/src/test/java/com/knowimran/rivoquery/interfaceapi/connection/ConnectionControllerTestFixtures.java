@@ -98,6 +98,7 @@ final class ConnectionControllerTestFixtures {
     static final class SequentialCanonicalIdGenerator implements CanonicalIdGenerator {
         private final java.util.concurrent.atomic.AtomicInteger connectionSeed = new java.util.concurrent.atomic.AtomicInteger();
         private final java.util.concurrent.atomic.AtomicInteger operationSeed = new java.util.concurrent.atomic.AtomicInteger();
+        private final java.util.concurrent.atomic.AtomicInteger snapshotSeed = new java.util.concurrent.atomic.AtomicInteger();
 
         @Override
         public ConnectionId newConnectionId() {
@@ -108,6 +109,11 @@ final class ConnectionControllerTestFixtures {
         public com.knowimran.rivoquery.connection.OperationId newOperationId() {
             return new com.knowimran.rivoquery.connection.OperationId(
                     "op_" + String.format("%026d", operationSeed.incrementAndGet()).replace('0', 'B'));
+        }
+
+        @Override
+        public String newSnapshotId() {
+            return "snap_" + String.format("%026d", snapshotSeed.incrementAndGet()).replace('0', 'S');
         }
     }
 
