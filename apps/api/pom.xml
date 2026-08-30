@@ -102,6 +102,12 @@
              command flags) and never uses MySQLContainer's built-in JDBC URL/driver wiring, which
              this connector bypasses entirely anyway; keeping the dependency around unused would only
              add an unnecessary artifact to the test classpath. -->
+
+        <dependency>
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>4.9</version>
+        </dependency>
     </dependencies>
 
     <build>
