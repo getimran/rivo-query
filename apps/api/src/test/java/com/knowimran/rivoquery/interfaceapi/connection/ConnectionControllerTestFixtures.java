@@ -115,6 +115,12 @@ final class ConnectionControllerTestFixtures {
         public String newSnapshotId() {
             return "snap_" + String.format("%026d", snapshotSeed.incrementAndGet()).replace('0', 'S');
         }
+
+        @Override
+        public com.knowimran.rivoquery.connection.QueryRequestId newQueryRequestId() {
+            return new com.knowimran.rivoquery.connection.QueryRequestId(
+                    "qry_" + String.format("%026d", connectionSeed.incrementAndGet()).replace('0', 'Q'));
+        }
     }
 
     static final class FakeConnectionRepository implements ConnectionRepository {

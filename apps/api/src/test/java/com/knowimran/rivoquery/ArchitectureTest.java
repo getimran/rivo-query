@@ -36,11 +36,16 @@ public class ArchitectureTest {
         // the real domain package com.knowimran.rivoquery.connection and
         // everything nested under it (application/connector/pool/etc.).
         "com.knowimran.rivoquery.connection..",
-        "..catalog..",
-        "..generation..",
-        "..querypolicy..",
-        "..execution..",
-        "..audit.."
+        // Anchored patterns for the same reason as connection: a floating
+        // glob like "..generation.." would also match
+        // com.knowimran.rivoquery.platform.generation (infrastructure
+        // adapters placed in platform), which legitimately depends on
+        // Spring and must not be treated as a core package.
+        "com.knowimran.rivoquery.catalog..",
+        "com.knowimran.rivoquery.generation..",
+        "com.knowimran.rivoquery.querypolicy..",
+        "com.knowimran.rivoquery.execution..",
+        "com.knowimran.rivoquery.audit.."
     };
 
     @ArchTest

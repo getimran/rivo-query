@@ -15,6 +15,12 @@ import com.knowimran.rivoquery.interfaceapi.connection.ConnectionEnableNotSuppor
 import com.knowimran.rivoquery.interfaceapi.connection.ConnectionEndpointUpdateNotSupportedException;
 import com.knowimran.rivoquery.interfaceapi.schema.SchemaAccessDeniedException;
 import com.knowimran.rivoquery.catalog.application.SchemaRefreshFailedException;
+import com.knowimran.rivoquery.interfaceapi.query.QueryAccessDeniedException;
+import com.knowimran.rivoquery.interfaceapi.query.QueryExecutionNotImplementedException;
+import com.knowimran.rivoquery.interfaceapi.query.QueryFeedbackNotImplementedException;
+import com.knowimran.rivoquery.interfaceapi.query.QueryPolicyViolationException;
+import com.knowimran.rivoquery.interfaceapi.query.QueryProviderException;
+import com.knowimran.rivoquery.interfaceapi.query.QuerySchemaStaleException;
 import com.knowimran.rivoquery.interfaceapi.generated.model.ProblemDetails;
 import com.knowimran.rivoquery.interfaceapi.operation.OperationNotFoundException;
 import com.knowimran.rivoquery.interfaceapi.permission.MembershipNotEligibleException;
@@ -544,6 +550,72 @@ public final class SafeProblemHandler {
                 "Schema refresh failed",
                 "The schema refresh operation could not be completed.",
                 "SCHEMA_REFRESH_FAILED");
+    }
+
+    @ExceptionHandler(QueryAccessDeniedException.class)
+    ResponseEntity<ProblemDetails> handleQueryAccessDenied(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.FORBIDDEN,
+                URI.create("urn:rivoquery:problem:query-access-denied"),
+                "Query access denied",
+                "The caller is not authorized to query this connection.",
+                "QUERY_ACCESS_DENIED");
+    }
+
+    @ExceptionHandler(QuerySchemaStaleException.class)
+    ResponseEntity<ProblemDetails> handleQuerySchemaStale(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.CONFLICT,
+                URI.create("urn:rivoquery:problem:query-schema-stale"),
+                "Schema metadata unavailable",
+                "No current schema snapshot is available for this connection. Refresh the schema and retry.",
+                "QUERY_SCHEMA_STALE");
+    }
+
+    @ExceptionHandler(QueryProviderException.class)
+    ResponseEntity<ProblemDetails> handleQueryProviderException(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.SERVICE_UNAVAILABLE,
+                URI.create("urn:rivoquery:problem:model-provider-unavailable"),
+                "Model provider unavailable",
+                "The model provider could not be reached or returned an error.",
+                "MODEL_PROVIDER_UNAVAILABLE");
+    }
+
+    @ExceptionHandler(QueryPolicyViolationException.class)
+    ResponseEntity<ProblemDetails> handleQueryPolicyViolation(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                URI.create("urn:rivoquery:problem:query-rejected"),
+                "Query rejected",
+                "The generated query was rejected by policy.",
+                "QUERY_REJECTED");
+    }
+
+    @ExceptionHandler(QueryExecutionNotImplementedException.class)
+    ResponseEntity<ProblemDetails> handleQueryExecutionNotImplemented(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.NOT_IMPLEMENTED,
+                URI.create("urn:rivoquery:problem:query-execution-not-implemented"),
+                "Query execution not available",
+                "Query execution is not yet implemented in this version.",
+                "QUERY_EXECUTION_NOT_IMPLEMENTED");
+    }
+
+    @ExceptionHandler(QueryFeedbackNotImplementedException.class)
+    ResponseEntity<ProblemDetails> handleQueryFeedbackNotImplemented(HttpServletRequest request) {
+        return problem(
+                request,
+                HttpStatus.NOT_IMPLEMENTED,
+                URI.create("urn:rivoquery:problem:query-feedback-not-implemented"),
+                "Query feedback not available",
+                "Query feedback is not yet implemented in this version.",
+                "QUERY_FEEDBACK_NOT_IMPLEMENTED");
     }
 
     // ------------------------------------------------------------------

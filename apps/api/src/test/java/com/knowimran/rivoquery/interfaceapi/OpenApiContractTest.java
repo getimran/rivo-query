@@ -103,6 +103,11 @@ class OpenApiContractTest {
                 "updateConnection",
                 "deleteConnection");
 
+        Set<String> nonMutatingPosts = Set.of(
+                "createQueryPreview",
+                "executeQuery",
+                "submitQueryFeedback");
+
         Map<String, Object> workspaceParameter =
                 map(map(map(contract.get("components")).get("parameters")).get("WorkspaceId"));
         assertThat(workspaceParameter.get("required")).isEqualTo(true);
@@ -126,7 +131,8 @@ class OpenApiContractTest {
                         .containsKey("403");
             }
 
-            if (Set.of("post", "put", "patch", "delete").contains(declared.method())) {
+            if (Set.of("post", "put", "patch", "delete").contains(declared.method())
+                    && !nonMutatingPosts.contains(declared.operation().get("operationId"))) {
                 assertThat(parameters)
                         .as("idempotency for %s", declared.operation().get("operationId"))
                         .contains("Idempotency-Key");

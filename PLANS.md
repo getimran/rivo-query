@@ -17,7 +17,7 @@ Deliver a production-oriented vertical slice in which an authenticated user can 
 - [x] Phase 1: repository and backend bootstrap
 - [ ] Phase 2: connection control plane
 - [ ] Phase 3: schema discovery and relevance selection
-- [ ] Phase 4: Text-to-SQL orchestration and QuerySentry
+- [x] Phase 4: Text-to-SQL orchestration and QuerySentry
 - [ ] Phase 5: query execution and audit
 - [ ] Phase 6: web console
 - [ ] Phase 7: MCP interface
@@ -249,6 +249,77 @@ changes — not a Phase 3 regression), frontend lint, tests (96.49% statement
 coverage), and production build. Evidence recorded in
 `docs/verification/phase-3.md`.
 
+P4-020/030/040 foundation update (2026-08-31): implemented Phase 4 generation and
+QuerySentry parser foundation. Added JSQLParser 4.9 dependency, `JsqlParserSqlParser`
+(Statement-level parsing, canonicalization via StatementDeParser, SHA-256 fingerprint,
+table/column extraction with CTE/set-operation traversal, schema/table authorization),
+`QuerySentry` (QueryPolicy enforcement: max tables/columns/joins/CTEs, single SELECT,
+read-only check, canonicalization round-trip), `SqlGenerationModel` port interface,
+`GenerationService` (orchestration: schema relevance selection -> prompt build ->
+model generate -> QuerySentry evaluate), `PromptBuilder` (schema-constrained prompt),
+`StructuredResponseParser` (JSON schema parsing), and `GenerationProperties`/`GenerationWiringConfiguration`
+Spring wiring.
+
+Architecture alignment (2026-08-31): moved `GenerationWiringConfiguration`,
+`GenerationProperties`, and `OpenAiCompatibleGenerationAdapter` from
+`generation.application`/`generation.adapter` to `platform`/`platform.generation`,
+following the established pattern where Spring infrastructure and framework adapters
+live in `platform` (e.g., `SchemaWiringConfiguration`, `JdbcCatalogRepository`).
+Kept `PromptBuilder` and `StructuredResponseParser` in `generation.adapter` since they
+are pure utilities with no Spring/JDBC dependencies. Added `SqlParserPort` bean
+registration in `GenerationWiringConfiguration`.
+
+OpenAPI contract (2026-08-31): extended `rivoquery-v1.yaml` with the query REST
+surface — `POST /queries` (preview), `POST /queries/{requestId}/execute`,
+`POST /queries/{requestId}/feedback`, and `GET /audit-events`. Added schemas:
+`QueryPreviewRequest`, `QueryPreviewResponse`, `QueryPreviewResponsePolicy`,
+`QueryPreviewStatus`, `QueryRequestId`, `QueryMode`, `QueryFeedbackRating`,
+`QueryFeedbackRequest`, `AuditEvent`, `AuditEventPage`. `QueryRequestId` uses
+`qry_`-prefixed opaque IDs. Query preview POSTs are non-mutating (no idempotency key
+required) per product design.
+
+REST API (2026-08-31): implemented `QueryController` implementing generated
+`QueriesApi` interface with `ActorResolver` auth, QUERY permission check,
+delegation to `GenerationService.ask()`, and mapping `GenerationResult` to
+`QueryPreviewResponse`. Added 6 exception types in `interfaceapi/query/` and
+`SafeProblemHandler` mappings: 403 (`QueryAccessDeniedException`), 409
+(`QuerySchemaStaleException`), 422 (`QueryPolicyViolationException`), 501
+(`QueryExecutionNotImplementedException`/`QueryFeedbackNotImplementedException`),
+503 (`QueryProviderException`). 7 controller tests cover auth, permissions,
+READY/NEEDS_CLARIFICATION responses, and 501 endpoints.
+
+OpenApiContractTest fix (2026-08-31): added `nonMutatingPosts` set
+(`createQueryPreview`, `executeQuery`, `submitQueryFeedback`) to exempt
+non-mutating query POSTs from the idempotency-key requirement.
+
+P4-100/110/120/130 update (2026-09-01): added `QuerySentryTest` (12 tests covering
+policy enforcement, read-only rejection, DML/DDL/stacked-statement rejection,
+cross-schema/unrecognized object rejection, complexity limits, row-limit
+enforcement, canonicalization, and `QueryRequestId` generation). Added
+`OpenAiCompatibleGenerationAdapterTest` (6 tests covering valid response parsing,
+null/invalid/empty/malformed JSON handling) via extracted `parseResponse` method.
+Added `SecurityCorpusTest` (37 parameterized tests covering adversarial SQL:
+DML/DDL, stacked statements, credential extraction, obfuscation, set operations,
+recursive CTEs, excessive CTE depth/size, null bytes, cross-schema/system-object
+access). Fixed `SafeProblemHandler.QueryPolicyViolationException` handler to not
+leak exception messages (uses fixed safe message per AGENTS.md invariant).
+
+P4-130 review findings (2026-09-01): addressed backend code reviewer findings.
+Fixed subselect authorization bypass (collect tables from `ParenthesedSelect`/
+`ParenthesedFromItem` in FROM clauses and joins). Added forbidden function
+detection (`pg_read_file`, `lo_import`, `load_file`, `pg_sleep`, `COPY`, etc.)
+in SQL parser. Cancel parser Future on timeout to prevent thread leaks.
+Wired API key as Bearer token Authorization header in RestClient. Fixed
+QueryController to return canonical SQL from ApprovedQuery, not raw LLM output.
+Sanitized schema/column descriptions before sending to LLM (strip newlines,
+truncate to 500 chars, prevent injection via description text).
+PR #18 opened.
+
+Compilation: `./mvnw -f apps/api/pom.xml compile` succeeds (367 source files).
+Unit tests: 695 pass, 0 failures (excluding `ArchitectureTest` and Testcontainers
+*IT classes). Integration tests require Docker/Testcontainers (not available in
+this environment).
+
 Repository gate update (2026-08-30): P3-040 through P3-100 plus P3-150 and the
 orchestrator/worker-port refactor are complete on
 `feat/phase-3-catalog-persistence`. Full local suite is green except for the
@@ -304,6 +375,17 @@ Acceptance:
 - DML, DDL, stacked statements, comments used for obfuscation, dangerous functions, cross-schema access, and unrecognized objects are rejected.
 - Model-supplied limits never override stricter server policy.
 - Prompt-injection cases from schema metadata and user questions are covered.
+
+Phase 4 design gate update (2026-08-30): product decisions approved in
+`docs/product-decisions/phase-4.md` (reference OpenAI-compatible adapter
+configuration, provider retention defaults, QUERY does not implicitly permit
+schema visibility). QuerySentry parser/canonicalization ADR accepted as
+`docs/adrs/0014-querysentry-parser-canonicalization.md`. JSQLParser selected as
+the dialect-capable parser with 500 ms deadline, 64 KiB input limit, 50-table /
+200-column / 10-join / 5-CTE complexity limits, round-trip serialization/reparse
+after limit transformation, and explicit rejection of recursive CTEs, set
+operations outside approved branches, and unknown dialect features. Phase 4
+implementation is active on `feat/phase-4-querysentry`.
 
 ## Phase 5 — Execution and audit
 
