@@ -1,11 +1,13 @@
-package com.knowimran.rivoquery.generation.adapter;
+package com.knowimran.rivoquery.platform.generation.adapter;
 
-import com.knowimran.rivoquery.catalog.AuthorizedCatalogSlice;
-import com.knowimran.rivoquery.connection.ConnectionId;
-import com.knowimran.rivoquery.generation.*;
-import com.knowimran.rivoquery.identity.WorkspaceId;
-import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import com.knowimran.rivoquery.generation.AmbiguityStatus;
+import com.knowimran.rivoquery.generation.GenerationRequest;
+import com.knowimran.rivoquery.generation.GenerationResponse;
+import com.knowimran.rivoquery.generation.SqlGenerationModel;
+import com.knowimran.rivoquery.generation.SqlGenerationModel.GenerationException;
+import com.knowimran.rivoquery.generation.SqlProposal;
+import com.knowimran.rivoquery.generation.adapter.PromptBuilder;
+import com.knowimran.rivoquery.generation.adapter.StructuredResponseParser;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import java.time.Duration;
@@ -63,25 +65,7 @@ public class OpenAiCompatibleGenerationAdapter implements SqlGenerationModel {
                         .retrieve()
                         .body(Map.class);
 
-                if (response == null || !response.containsKey("choices")) {
-                    throw new GenerationException("invalid response from model provider");
-                }
-
-                List<?> choices = (List<?>) response.get("choices");
-                if (choices.isEmpty()) {
-                    throw new GenerationException("empty choices from model provider");
-                }
-
-                Map<?, ?> choice = (Map<?, ?>) choices.get(0);
-                Map<?, ?> message = (Map<?, ?>) choice.get("message");
-                String content = (String) message.get("content");
-
-                SqlProposal proposal;
-                try {
-                    proposal = StructuredResponseParser.parse(content);
-                } catch (StructuredResponseParser.ParseException e) {
-                    throw new GenerationException("failed to parse model response: " + e.getMessage(), e);
-                }
+                SqlProposal proposal = parseResponse(response);
                 long latencyMs = Instant.now().toEpochMilli() - start;
 
                 return new GenerationResponse(
@@ -97,6 +81,27 @@ public class OpenAiCompatibleGenerationAdapter implements SqlGenerationModel {
                     throw new GenerationException("model generation failed after " + attempt + " attempts: " + e.getMessage(), e);
                 }
             }
+        }
+    }
+
+    static SqlProposal parseResponse(Map<?, ?> response) throws GenerationException {
+        if (response == null || !response.containsKey("choices")) {
+            throw new GenerationException("invalid response from model provider");
+        }
+
+        List<?> choices = (List<?>) response.get("choices");
+        if (choices.isEmpty()) {
+            throw new GenerationException("empty choices from model provider");
+        }
+
+        Map<?, ?> choice = (Map<?, ?>) choices.get(0);
+        Map<?, ?> message = (Map<?, ?>) choice.get("message");
+        String content = (String) message.get("content");
+
+        try {
+            return StructuredResponseParser.parse(content);
+        } catch (StructuredResponseParser.ParseException e) {
+            throw new GenerationException("failed to parse model response: " + e.getMessage(), e);
         }
     }
 }

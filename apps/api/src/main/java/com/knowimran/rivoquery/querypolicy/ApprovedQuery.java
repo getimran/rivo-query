@@ -2,6 +2,7 @@ package com.knowimran.rivoquery.querypolicy;
 
 import com.knowimran.rivoquery.catalog.AuthorizedCatalogSlice;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.connection.QueryRequestId;
 import com.knowimran.rivoquery.generation.SqlProposal;
 import java.time.Instant;
 import java.util.List;
@@ -9,7 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public record ApprovedQuery(
-        String queryId,
+        QueryRequestId queryId,
         DatabaseKind dialect,
         String canonicalSql,
         String sqlFingerprint,
@@ -31,7 +32,7 @@ public record ApprovedQuery(
         Objects.requireNonNull(policyVersion, "policyVersion");
         Objects.requireNonNull(approvedAt, "approvedAt");
         Objects.requireNonNull(expiresAt, "expiresAt");
-        if (queryId.isBlank()) {
+        if (queryId.value().isBlank()) {
             throw new IllegalArgumentException("queryId must not be blank");
         }
         if (canonicalSql.isBlank()) {

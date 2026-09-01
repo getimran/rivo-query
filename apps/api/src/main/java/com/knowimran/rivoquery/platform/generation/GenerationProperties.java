@@ -1,4 +1,4 @@
-package com.knowimran.rivoquery.generation.application;
+package com.knowimran.rivoquery.platform.generation;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;

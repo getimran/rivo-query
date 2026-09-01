@@ -29,13 +29,13 @@ public class JsqlParserSqlParser implements SqlParserPort {
             int maxColumns,
             int maxJoins,
             int maxCteLevels,
-            long deadlineMs) throws ParseException, TimeoutException {
+            long deadlineMs) throws SqlParserPort.ParseException, SqlParserPort.TimeoutException {
 
         if (sql == null || sql.isBlank()) {
-            throw new ParseException("SQL must not be blank");
+            throw new SqlParserPort.ParseException("SQL must not be blank");
         }
         if (sql.length() > MAX_INPUT_SIZE) {
-            throw new ParseException("SQL exceeds maximum input size of " + MAX_INPUT_SIZE + " bytes");
+            throw new SqlParserPort.ParseException("SQL exceeds maximum input size of " + MAX_INPUT_SIZE + " bytes");
         }
         if (deadlineMs <= 0) {
             deadlineMs = DEFAULT_DEADLINE_MS;
@@ -50,13 +50,13 @@ public class JsqlParserSqlParser implements SqlParserPort {
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();
             if (cause instanceof JSQLParserException je) {
-                throw new ParseException("failed to parse SQL: " + je.getMessage(), je);
+                throw new SqlParserPort.ParseException("failed to parse SQL: " + je.getMessage(), je);
             }
-            throw new ParseException("parser execution failed", e);
+            throw new SqlParserPort.ParseException("parser execution failed", e);
         }
 
         if (statement == null) {
-            throw new ParseException("parser returned null statement");
+            throw new SqlParserPort.ParseException("parser returned null statement");
         }
 
         if (!(statement instanceof Select)) {
@@ -151,21 +151,21 @@ public class JsqlParserSqlParser implements SqlParserPort {
     }
 
     @Override
-    public String canonicalize(DatabaseKind dialect, String sql) throws ParseException {
+    public String canonicalize(DatabaseKind dialect, String sql) throws SqlParserPort.ParseException {
         if (sql == null || sql.isBlank()) {
-            throw new ParseException("SQL must not be blank");
+            throw new SqlParserPort.ParseException("SQL must not be blank");
         }
         try {
             Statement statement = parseWithTimeout(sql, 500);
             return canonicalize(statement);
         } catch (SqlParserPort.TimeoutException e) {
-            throw new ParseException("parser timeout during canonicalization: " + e.getMessage(), e);
+            throw new SqlParserPort.ParseException("parser timeout during canonicalization: " + e.getMessage(), e);
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();
             if (cause instanceof JSQLParserException je) {
-                throw new ParseException("failed to parse SQL for canonicalization: " + je.getMessage(), je);
+                throw new SqlParserPort.ParseException("failed to parse SQL for canonicalization: " + je.getMessage(), je);
             }
-            throw new ParseException("failed to canonicalize SQL", e);
+            throw new SqlParserPort.ParseException("failed to canonicalize SQL", e);
         }
     }
 
@@ -180,15 +180,15 @@ public class JsqlParserSqlParser implements SqlParserPort {
     }
 
     @Override
-    public String fingerprint(String sql) throws ParseException {
+    public String fingerprint(String sql) throws SqlParserPort.ParseException {
         if (sql == null || sql.isBlank()) {
-            throw new ParseException("SQL must not be blank");
+            throw new SqlParserPort.ParseException("SQL must not be blank");
         }
         try {
             String canonical = canonicalize(DatabaseKind.POSTGRESQL, sql);
             return sha256(canonical);
-        } catch (ParseException e) {
-            throw new ParseException("failed to fingerprint SQL: " + e.getMessage(), e);
+        } catch (SqlParserPort.ParseException e) {
+            throw new SqlParserPort.ParseException("failed to fingerprint SQL: " + e.getMessage(), e);
         }
     }
 
@@ -310,19 +310,24 @@ public class JsqlParserSqlParser implements SqlParserPort {
         Set<String> allowedTableSet = new HashSet<>(allowedTables);
         Set<String> allowedSchemaSet = new HashSet<>(allowedSchemas);
         for (String table : referencedTables) {
-            boolean tableAllowed = allowedTableSet.isEmpty() || allowedTableSet.contains(table);
+            String canonicalTable = normalizeForAuthorization(table);
+            boolean tableAllowed = allowedTableSet.isEmpty() || allowedTableSet.contains(canonicalTable);
             boolean schemaAllowed = allowedSchemaSet.isEmpty();
-            if (!schemaAllowed && table.contains(".")) {
-                String schema = table.substring(0, table.lastIndexOf('.'));
+            if (!schemaAllowed && canonicalTable.contains(".")) {
+                String schema = canonicalTable.substring(0, canonicalTable.lastIndexOf('.'));
                 schemaAllowed = allowedSchemaSet.contains(schema);
             } else if (!schemaAllowed) {
-                schemaAllowed = allowedSchemaSet.contains(table);
+                schemaAllowed = allowedSchemaSet.contains(canonicalTable);
             }
             if (!tableAllowed || !schemaAllowed) {
                 errors.add("table " + table + " is not in the authorized catalog");
             }
         }
         return errors;
+    }
+
+    private static String normalizeForAuthorization(String qualified) {
+        return qualified.toLowerCase(Locale.ROOT);
     }
 
     private int countJoins(PlainSelect plainSelect) {
@@ -337,7 +342,7 @@ public class JsqlParserSqlParser implements SqlParserPort {
         return count;
     }
 
-    private String sha256(String value) throws ParseException {
+    private String sha256(String value) throws SqlParserPort.ParseException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));

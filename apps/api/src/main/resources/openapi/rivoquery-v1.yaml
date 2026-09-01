@@ -14,6 +14,7 @@ tags:
   - name: Schema
   - name: Connection permissions
   - name: Operations
+  - name: Queries
 paths:
   /api/v1/health/live:
     get:
@@ -767,6 +768,175 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/queries:
+    post:
+      tags: [Queries]
+      operationId: createQueryPreview
+      summary: Preview SQL generated for a natural-language question
+      description: >-
+        Requires effective `QUERY` on the connection and current schema metadata.
+        Returns a structured preview with no target execution. Preview generation
+        is non-durable and bounded.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryPreviewRequest'
+      responses:
+        '200':
+          description: Structured preview response.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/queries/{requestId}/execute:
+    post:
+      tags: [Queries]
+      operationId: executeQuery
+      summary: Execute a QuerySentry-approved preview SQL
+      description: >-
+        Re-checks authorization, connection version, catalog fingerprint, policy
+        version, and deadline before executing only the approved SQL. Execution is
+        not available in Phase 4 preview; this endpoint is defined for contract
+        completeness and returns 501 until Phase 5.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/QueryRequestId'
+      responses:
+        '501':
+          description: Query execution is not yet available.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/queries/{requestId}/feedback:
+    post:
+      tags: [Queries]
+      operationId: submitQueryFeedback
+      summary: Submit feedback on a preview query
+      description: >-
+        Accepts CORRECT, INCORRECT, or PARTIALLY_CORRECT with optional reason
+        categories and a bounded comment. Does not accept pasted raw result datasets.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/QueryRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryFeedbackRequest'
+      responses:
+        '204':
+          description: Feedback accepted.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/audit-events:
+    get:
+      tags: [Queries]
+      operationId: listAuditEvents
+      summary: List audit events for the selected workspace
+      description: >-
+        Authorized administrators can list bounded audit events. Events never
+        contain credentials, raw result rows, or internal error details.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A bounded page of audit events.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            Cache-Control:
+              $ref: '#/components/headers/PrivateNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '406':
           $ref: '#/components/responses/NotAcceptable'
         '429':
@@ -1709,7 +1879,184 @@ components:
             IDEMPOTENCY_KEY_REQUIRED, IDEMPOTENCY_KEY_REUSED,
             CONNECTION_STATE_CONFLICT, DESTINATION_NOT_ALLOWED,
             DESTINATION_RESOLUTION_FAILED, SECRET_PROVIDER_UNAVAILABLE,
-            CONNECTION_TEST_FAILED, RATE_LIMITED, and INTERNAL_ERROR.
+            CONNECTION_TEST_FAILED, CONNECTION_NOT_QUERYABLE, RATE_LIMITED,
+            QUERY_REJECTED, QUERY_PROVIDER_ERROR, QUERY_PREVIEW_EXPIRED, and
+            INTERNAL_ERROR.
           pattern: '^[A-Z][A-Z0-9_]{0,63}$'
         requestId:
           $ref: '#/components/schemas/RequestId'
+    QueryMode:
+      type: string
+      description: Preview generates SQL without execution; Execute runs approved SQL.
+      enum: [PREVIEW, EXECUTE]
+    QueryRequestId:
+      type: string
+      description: Opaque identifier for a query preview request.
+      pattern: '^qry_[0-9A-HJKMNP-TV-Z]{26}$'
+      examples: [qry_01J6MZ4H9ST5N7YQ2C8W3V0KFX]
+    QueryPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [connectionId, question, mode]
+      properties:
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Natural-language question, treated as untrusted input.
+        mode:
+          $ref: '#/components/schemas/QueryMode'
+          default: PREVIEW
+        requestedMaxRows:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Requested row cap; server policy may impose a stricter limit.
+    QueryPreviewStatus:
+      type: string
+      enum: [READY, NEEDS_CLARIFICATION, UNANSWERABLE]
+    QueryPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [requestId, status]
+      properties:
+        requestId:
+          $ref: '#/components/schemas/QueryRequestId'
+        status:
+          $ref: '#/components/schemas/QueryPreviewStatus'
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        sql:
+          type: string
+          minLength: 1
+          maxLength: 65536
+          description: Approved SQL, present only when status is READY.
+        sqlFingerprint:
+          type: string
+          description: Deterministic SHA-256 fingerprint of canonical SQL.
+        explanation:
+          type: string
+          maxLength: 4096
+        assumptions:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 1024
+        referencedObjects:
+          type: array
+          maxItems: 128
+          items:
+            type: string
+            maxLength: 512
+        warnings:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            maxLength: 1024
+        clarificationQuestion:
+          type: string
+          maxLength: 1024
+          description: Present only when status is NEEDS_CLARIFICATION.
+        choices:
+          type: array
+          maxItems: 10
+          description: Suggested clarification choices.
+          items:
+            type: string
+            maxLength: 256
+        policy:
+          type: object
+          additionalProperties: false
+          required: [version, maxRows, statementTimeoutMs]
+          properties:
+            version:
+              type: string
+            maxRows:
+              type: integer
+              minimum: 1
+            statementTimeoutMs:
+              type: integer
+              minimum: 100
+            maxTables:
+              type: integer
+              minimum: 1
+            maxColumns:
+              type: integer
+              minimum: 1
+            maxJoins:
+              type: integer
+              minimum: 0
+            maxCteLevels:
+              type: integer
+              minimum: 0
+    QueryFeedbackRating:
+      type: string
+      enum: [CORRECT, INCORRECT, PARTIALLY_CORRECT]
+    QueryFeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [rating]
+      properties:
+        rating:
+          $ref: '#/components/schemas/QueryFeedbackRating'
+        reasonCategories:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 128
+        comment:
+          type: string
+          maxLength: 4096
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required: [eventId, workspaceId, action, outcome, actor, timestamp]
+      properties:
+        eventId:
+          type: string
+          pattern: '^aud_[0-9A-HJKMNP-TV-Z]{26}$'
+        workspaceId:
+          $ref: '#/components/schemas/WorkspaceId'
+        action:
+          type: string
+          description: Action category, e.g. QUERY_PREVIEW, QUERY_EXECUTE.
+        outcome:
+          type: string
+          description: Outcome category, e.g. SUCCEEDED, REJECTED, FAILED.
+        actor:
+          type: string
+          description: Opaque actor identifier (never credentials).
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+        connectionId:
+          $ref: '#/components/schemas/ConnectionId'
+        queryRequestId:
+          $ref: '#/components/schemas/QueryRequestId'
+        sqlFingerprint:
+          type: string
+          description: Deterministic fingerprint only; never raw SQL or result rows.
+        rowCount:
+          type: integer
+          minimum: 0
+          description: Present only for successful executions.
+    AuditEventPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        nextCursor:
+          $ref: '#/components/schemas/Cursor'

@@ -2,20 +2,23 @@ package com.knowimran.rivoquery.querypolicy;
 
 import com.knowimran.rivoquery.catalog.AuthorizedCatalogSlice;
 import com.knowimran.rivoquery.connection.DatabaseKind;
+import com.knowimran.rivoquery.connection.application.lifecycle.CanonicalIdGenerator;
+import com.knowimran.rivoquery.connection.QueryRequestId;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 public class QuerySentry {
 
     private final SqlParserPort parser;
     private final String policyVersion;
+    private final CanonicalIdGenerator idGenerator;
 
-    public QuerySentry(SqlParserPort parser, String policyVersion) {
+    public QuerySentry(SqlParserPort parser, String policyVersion, CanonicalIdGenerator idGenerator) {
         this.parser = parser;
         this.policyVersion = policyVersion;
+        this.idGenerator = idGenerator;
     }
 
     public ApprovedQuery evaluate(
@@ -66,7 +69,7 @@ public class QuerySentry {
 
             Instant now = Instant.now();
             return new ApprovedQuery(
-                    UUID.randomUUID().toString(),
+                    idGenerator.newQueryRequestId(),
                     dialect,
                     result.canonicalSql(),
                     result.fingerprint(),

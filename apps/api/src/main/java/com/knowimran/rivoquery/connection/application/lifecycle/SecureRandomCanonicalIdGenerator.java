@@ -2,6 +2,7 @@ package com.knowimran.rivoquery.connection.application.lifecycle;
 
 import com.knowimran.rivoquery.connection.ConnectionId;
 import com.knowimran.rivoquery.connection.OperationId;
+import com.knowimran.rivoquery.connection.QueryRequestId;
 import java.security.SecureRandom;
 
 /**
@@ -30,6 +31,11 @@ public final class SecureRandomCanonicalIdGenerator implements CanonicalIdGenera
     @Override
     public String newSnapshotId() {
         return "snap_" + randomSuffix();
+    }
+
+    @Override
+    public QueryRequestId newQueryRequestId() {
+        return new QueryRequestId("qry_" + randomSuffix());
     }
 
     private String randomSuffix() {

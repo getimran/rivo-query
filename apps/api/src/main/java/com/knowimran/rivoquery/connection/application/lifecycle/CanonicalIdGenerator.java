@@ -17,4 +17,6 @@ public interface CanonicalIdGenerator {
     OperationId newOperationId();
 
     String newSnapshotId();
+
+    com.knowimran.rivoquery.connection.QueryRequestId newQueryRequestId();
 }

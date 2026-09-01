@@ -102,6 +102,11 @@ class SchemaRefreshOrchestratorTest {
             public String newSnapshotId() {
                 return null;
             }
+
+            @Override
+            public com.knowimran.rivoquery.connection.QueryRequestId newQueryRequestId() {
+                return null;
+            }
         };
         FakeRefreshService refreshService = new FakeRefreshService(catalogRepository, discoveryPort, idGenerator, false);
         SchemaRefreshWorkerPort worker = new SchemaRefreshWorkerPort() {
@@ -203,6 +208,11 @@ class SchemaRefreshOrchestratorTest {
 
             @Override
             public String newSnapshotId() {
+                return null;
+            }
+
+            @Override
+            public com.knowimran.rivoquery.connection.QueryRequestId newQueryRequestId() {
                 return null;
             }
         };
