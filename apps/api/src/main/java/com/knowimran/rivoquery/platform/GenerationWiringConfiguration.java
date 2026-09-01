@@ -11,22 +11,33 @@ import com.knowimran.rivoquery.platform.generation.adapter.OpenAiCompatibleGener
 import com.knowimran.rivoquery.querypolicy.JsqlParserSqlParser;
 import com.knowimran.rivoquery.querypolicy.QuerySentry;
 import com.knowimran.rivoquery.querypolicy.SqlParserPort;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
+import java.time.Duration;
 
 @Configuration
 @EnableConfigurationProperties(GenerationProperties.class)
 public class GenerationWiringConfiguration {
 
+    private static final Logger log = LoggerFactory.getLogger(GenerationWiringConfiguration.class);
+
     @Bean
     SqlGenerationModel sqlGenerationModel(GenerationProperties properties, RestClient.Builder restClientBuilder) {
-        RestClient restClient = restClientBuilder
+        String apiKey = properties.getAdapter().getApiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("rivoquery.generation.adapter.api-key is not configured; LLM requests will be unauthenticated");
+        }
+        RestClient.Builder builder = restClientBuilder
                 .baseUrl(properties.getAdapter().getBaseUrl())
-                .build();
+                .defaultHeader("Authorization", "Bearer " + (apiKey != null ? apiKey : ""))
+                .defaultHeader("Content-Type", "application/json");
         return new OpenAiCompatibleGenerationAdapter(
-                restClient,
+                builder.build(),
                 properties.getAdapter().getModel(),
                 properties.getAdapter().getTimeout(),
                 properties.getAdapter().getMaxRetries(),

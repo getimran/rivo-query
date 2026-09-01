@@ -2,11 +2,14 @@ package com.knowimran.rivoquery.querypolicy;
 
 import com.knowimran.rivoquery.connection.DatabaseKind;
 import net.sf.jsqlparser.JSQLParserException;
+import net.sf.jsqlparser.expression.*;
+import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.*;
+import net.sf.jsqlparser.util.deparser.ExpressionDeParser;
 import net.sf.jsqlparser.util.deparser.ExpressionDeParser;
 import net.sf.jsqlparser.util.deparser.SelectDeParser;
 import net.sf.jsqlparser.util.deparser.StatementDeParser;
@@ -106,6 +109,9 @@ public class JsqlParserSqlParser implements SqlParserPort {
         List<String> authorizationErrors = checkAuthorization(referencedTables, allowedSchemas, allowedTables);
         rejectedReasons.addAll(authorizationErrors);
 
+        List<String> functionErrors = checkForbiddenFunctions(canonicalize(statement));
+        rejectedReasons.addAll(functionErrors);
+
         int joinCount = countJoins(plainSelect);
         boolean hasSetOperation = select.getSelectBody() instanceof SetOperationList;
 
@@ -194,8 +200,9 @@ public class JsqlParserSqlParser implements SqlParserPort {
 
     private Statement parseWithTimeout(String sql, long deadlineMs) throws SqlParserPort.TimeoutException {
         ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<Statement> future = null;
         try {
-            Future<Statement> future = executor.submit(() -> {
+            future = executor.submit(() -> {
                 try {
                     return CCJSqlParserUtil.parse(sql);
                 } catch (JSQLParserException e) {
@@ -213,6 +220,7 @@ public class JsqlParserSqlParser implements SqlParserPort {
             }
             throw new RuntimeException(cause);
         } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
             throw new SqlParserPort.TimeoutException("parser timeout after " + deadlineMs + "ms");
         } finally {
             executor.shutdownNow();
@@ -247,15 +255,21 @@ public class JsqlParserSqlParser implements SqlParserPort {
     }
 
     private void collectTablesFromPlainSelect(PlainSelect plainSelect, List<String> tables) {
-        if (plainSelect.getFromItem() instanceof Table table) {
-            tables.add(qualifiedName(table));
-        }
+        collectTablesFromFromItem(plainSelect.getFromItem(), tables);
         if (plainSelect.getJoins() != null) {
             for (Join join : plainSelect.getJoins()) {
-                if (join.getRightItem() instanceof Table table) {
-                    tables.add(qualifiedName(table));
-                }
+                collectTablesFromFromItem(join.getRightItem(), tables);
             }
+        }
+    }
+
+    private void collectTablesFromFromItem(net.sf.jsqlparser.statement.select.FromItem item, List<String> tables) {
+        if (item instanceof Table table) {
+            tables.add(qualifiedName(table));
+        } else if (item instanceof ParenthesedSelect parenthesizedSelect) {
+            collectTablesFromSelect(parenthesizedSelect.getSelect(), tables);
+        } else if (item instanceof ParenthesedFromItem parenthesizedFromItem) {
+            collectTablesFromFromItem(parenthesizedFromItem.getFromItem(), tables);
         }
     }
 
@@ -321,6 +335,29 @@ public class JsqlParserSqlParser implements SqlParserPort {
             }
             if (!tableAllowed || !schemaAllowed) {
                 errors.add("table " + table + " is not in the authorized catalog");
+            }
+        }
+        return errors;
+    }
+
+    private List<String> checkForbiddenFunctions(String canonicalSql) {
+        List<String> errors = new ArrayList<>();
+        Set<String> forbidden = Set.of(
+                "pg_read_file", "pg_write_file", "pg_read_binary_file", "pg_stat_file",
+                "lo_import", "lo_export", "lo_read", "lo_write",
+                "load_file", "intooutfile", "intodumefile",
+                "pg_sleep", "pg_backend_pid", "pg_stat_activity", "pg_stat_replication",
+                "pg_create_restore_point", "pg_switch_wal", "pg_walfile_name",
+                "current_setting", "set_config",
+                "dblink", "dblink_exec", "dblink_connect",
+                "copy"
+        );
+
+        String upperSql = canonicalSql.toUpperCase(Locale.ROOT);
+        for (String fn : forbidden) {
+            if (upperSql.contains(" " + fn.toUpperCase(Locale.ROOT) + "(") ||
+                upperSql.contains("(" + fn.toUpperCase(Locale.ROOT) + "(")) {
+                errors.add("forbidden function: " + fn);
             }
         }
         return errors;

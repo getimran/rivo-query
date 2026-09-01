@@ -94,7 +94,7 @@ public class QueryController implements QueriesApi {
 
         if (response.status() == com.knowimran.rivoquery.generation.AmbiguityStatus.READY) {
             var proposal = response.proposal();
-            dto.sql(proposal.sql())
+            dto.sql(approved.canonicalSql())
                 .sqlFingerprint(approved.sqlFingerprint())
                 .explanation(proposal.explanation())
                 .assumptions(proposal.assumptions())

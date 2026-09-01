@@ -11,6 +11,19 @@ public final class PromptBuilder {
     private PromptBuilder() {
     }
 
+    private static final int MAX_DESCRIPTION_LENGTH = 500;
+
+    static String sanitizeDescription(String description) {
+        if (description == null || description.isBlank()) {
+            return null;
+        }
+        String cleaned = description.replace('\n', ' ').replace('\r', ' ').trim();
+        if (cleaned.length() > MAX_DESCRIPTION_LENGTH) {
+            cleaned = cleaned.substring(0, MAX_DESCRIPTION_LENGTH) + "...";
+        }
+        return cleaned;
+    }
+
     public static String build(GenerationRequest request) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("You are a SQL assistant for a read-only database query system.\n\n");
@@ -21,14 +34,16 @@ public final class PromptBuilder {
         for (SchemaObject object : request.catalogSlice().objects()) {
             CanonicalQualifiedName name = object.canonicalName();
             prompt.append("- ").append(name.schema()).append(".").append(name.object());
-            if (object.description() != null && !object.description().isBlank()) {
-                prompt.append(" (").append(object.description()).append(")");
+            String desc = sanitizeDescription(object.description());
+            if (desc != null) {
+                prompt.append(" (").append(desc).append(")");
             }
             prompt.append("\n");
             for (var column : object.columns()) {
                 prompt.append("  - ").append(column.name());
-                if (column.description() != null && !column.description().isBlank()) {
-                    prompt.append(": ").append(column.description());
+                String colDesc = sanitizeDescription(column.description());
+                if (colDesc != null) {
+                    prompt.append(": ").append(colDesc);
                 }
                 prompt.append(" [").append(column.type()).append("]");
                 if (!column.nullable()) {
