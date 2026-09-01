@@ -17,7 +17,7 @@ Deliver a production-oriented vertical slice in which an authenticated user can 
 - [x] Phase 1: repository and backend bootstrap
 - [ ] Phase 2: connection control plane
 - [ ] Phase 3: schema discovery and relevance selection
-- [ ] Phase 4: Text-to-SQL orchestration and QuerySentry
+- [x] Phase 4: Text-to-SQL orchestration and QuerySentry
 - [ ] Phase 5: query execution and audit
 - [ ] Phase 6: web console
 - [ ] Phase 7: MCP interface
@@ -304,8 +304,19 @@ recursive CTEs, excessive CTE depth/size, null bytes, cross-schema/system-object
 access). Fixed `SafeProblemHandler.QueryPolicyViolationException` handler to not
 leak exception messages (uses fixed safe message per AGENTS.md invariant).
 
-Compilation: `./mvnw -f apps/api/pom.xml compile` succeeds (355 source files).
-Unit tests: 693 pass, 0 failures (excluding `ArchitectureTest` and Testcontainers
+P4-130 review findings (2026-09-01): addressed backend code reviewer findings.
+Fixed subselect authorization bypass (collect tables from `ParenthesedSelect`/
+`ParenthesedFromItem` in FROM clauses and joins). Added forbidden function
+detection (`pg_read_file`, `lo_import`, `load_file`, `pg_sleep`, `COPY`, etc.)
+in SQL parser. Cancel parser Future on timeout to prevent thread leaks.
+Wired API key as Bearer token Authorization header in RestClient. Fixed
+QueryController to return canonical SQL from ApprovedQuery, not raw LLM output.
+Sanitized schema/column descriptions before sending to LLM (strip newlines,
+truncate to 500 chars, prevent injection via description text).
+PR #18 opened.
+
+Compilation: `./mvnw -f apps/api/pom.xml compile` succeeds (367 source files).
+Unit tests: 695 pass, 0 failures (excluding `ArchitectureTest` and Testcontainers
 *IT classes). Integration tests require Docker/Testcontainers (not available in
 this environment).
 
